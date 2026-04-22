@@ -12,12 +12,14 @@ fn main() {
         io::stdin().read_line(&mut command).unwrap();
         
         
-        if command.trim().to_string() == "exit" {
+        command = command.trim().to_string();
+        
+        if command == "exit" {
             break;
         }
         
         if command.starts_with("echo") {
-            println!("{}", &command[5..].trim());
+            println!("{}", &command[5..]);
         }else{
             println!("{0}: command not found", command.trim());
         }
