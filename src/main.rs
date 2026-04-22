@@ -28,7 +28,7 @@ fn main() {
             if builtins.contains(&&command[5..]) {
                 println!("{} is a shell builtin", &command[5..]);
             }else{
-                println!("invalid_command: not found");
+                println!("{}: not found", &command[5..]);
             }
         }else{
             println!("{0}: command not found", command.trim());
