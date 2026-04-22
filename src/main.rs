@@ -17,7 +17,7 @@ fn main() {
         }
         
         if command.starts_with("echo") {
-            println!("{}", &command[5..]);
+            println!("{}", &command[5..].trim());
         }else{
             println!("{0}: command not found", command.trim());
         }
