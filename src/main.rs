@@ -56,7 +56,7 @@ fn main() {
                     .find(|fp| fp.is_file() && is_executable(&fp.display().to_string()));
                 
                 match matched_path {
-                    Some(fp) => println!("{} is {:?}", command_args, fp ),
+                    Some(fp) => println!("{} is {}", command_args, fp.display()),
                     _ => println!("{}: not found ", command_args),
                 }
             }
