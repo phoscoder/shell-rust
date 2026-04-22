@@ -22,13 +22,16 @@ fn main() {
         }
         
         if command.starts_with("echo") {
+
             println!("{}", &command[5..]);
         }else if command.starts_with("type") {
             
-            if builtins.contains(&&command[5..]) {
-                println!("{} is a shell builtin", &command[5..]);
+            let command_args = &command[5..];
+            
+            if builtins.contains(&command_args) {
+                println!("{} is a shell builtin", command_args);
             }else{
-                println!("{}: not found", &command[5..]);
+                println!("{}: not found", command_args);
             }
         }else{
             println!("{0}: command not found", command.trim());
