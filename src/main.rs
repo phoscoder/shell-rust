@@ -1,8 +1,17 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::os::unix::fs::PermissionsExt;
-use std::fmt::Display;
+use std::process::{Command};
+
+
+fn get_command_path(path: &str, command: &str) -> Option<PathBuf> {
+    path.split(":")
+        .map(Path::new)
+        .filter(|p| p.is_dir())
+        .map(|p| p.join(command))
+        .find(|fp| fp.is_file() && is_executable(&fp.display().to_string()))
+}
 
 
 fn is_executable(path: &str) -> bool {
@@ -47,21 +56,36 @@ fn main() {
             if builtins.contains(&command_args) {
                 println!("{} is a shell builtin", command_args);
             }else{
-                // println!("{}: not found", command_args);
                 
-                let matched_path = path.split(":")
-                    .map(Path::new)
-                    .filter(|p| p.is_dir())
-                    .map(|p| p.join(command_args))
-                    .find(|fp| fp.is_file() && is_executable(&fp.display().to_string()));
-                
-                match matched_path {
+                match get_command_path(&path, command_args) {
                     Some(fp) => println!("{} is {}", command_args, fp.display()),
                     _ => println!("{}: not found ", command_args),
                 }
             }
         }else{
-            println!("{0}: command not found", command.trim());
+            
+            let mut parts = command.split_whitespace();
+            let program = parts.next().unwrap();
+            let args: Vec<&str> = parts.collect();
+            
+            
+            
+            match get_command_path(&path, program) {
+                Some(fp) => {
+                    
+                    
+                  let out = Command::new(fp)
+                      .args(args)
+                      .output()
+                      .expect("Failed to execute command");
+                 
+                  println!("{}", String::from_utf8_lossy(&out.stdout)); 
+                },
+                _ => println!("{0}: command not found", command.trim())
+            }
+            
+            
+            
         }
     }
 }
