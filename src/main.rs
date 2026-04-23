@@ -2,7 +2,7 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Command};
+use std::process::{Command, Stdio};
 use std::os::unix::process::CommandExt;
 
 
@@ -78,10 +78,15 @@ fn main() {
                   let out = Command::new(fp)
                       .arg0(program)
                       .args(args)
-                      .output()
-                      .expect("Failed to execute command");
+                      .stdin(Stdio::inherit())
+                    .stdout(Stdio::inherit())
+                    .stderr(Stdio::inherit())
+                    .spawn()
+                      .expect("Failed to execute command")
+                      .wait()
+                    .expect("Failed to wait for command");
                  
-                  println!("{}", String::from_utf8_lossy(&out.stdout)); 
+    
                 },
                 _ => println!("{0}: command not found", command.trim())
             }
