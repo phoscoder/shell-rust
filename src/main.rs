@@ -15,7 +15,12 @@ fn tokenize(input: &str) -> Vec<String> {
 
     while let Some(ch) = chars.next() {
         if escape_next {
-            current_token.push(ch);
+            
+            if ch == '\\' {
+                current_token += "\\";
+            } else {
+                current_token.push(ch);
+            }
             escape_next = false;
             continue;
         }
