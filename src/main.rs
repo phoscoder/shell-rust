@@ -150,11 +150,28 @@ fn main() {
         if command.starts_with("echo") {
             // println!("{}", &command[5..]);
            
-            if tokens.len() > 1 {
-                println!("{}", tokens[1..].join(" "));
-            } else {
-                println!();
-            }
+            // if tokens.len() > 1 {
+            //     println!("{}", tokens[1..].join(" "));
+            // } else {
+            //     println!();
+            // }
+            let output = if tokens.len() > 1 {
+                    tokens[1..].join(" ")
+                } else {
+                    String::new()
+                };
+            
+                match &redirect_file {
+                    Some(file) => {
+                        let mut f = std::fs::File::create(file).expect("failed to open file");
+                        writeln!(f, "{}", output).unwrap();
+                    }
+                    _ => {
+                        println!("{}", output);
+                    }
+                }
+            
+            
         } else if command.starts_with("pwd") {
             println!("{}", std::env::current_dir().unwrap().display());
         } else if command.starts_with("cd") {
