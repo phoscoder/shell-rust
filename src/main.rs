@@ -37,7 +37,7 @@ fn main() {
         let mut command = String::new();
         io::stdin().read_line(&mut command).unwrap();
         
-        let builtins = ["echo", "exit", "type", "pwd"];
+        let builtins = ["echo", "exit", "type", "pwd", "cd"];
         
         
         
@@ -53,6 +53,15 @@ fn main() {
             println!("{}", &command[5..]);
         } else if command.starts_with("pwd") {
             println!("{}", std::env::current_dir().unwrap().display());
+        } else if command.starts_with("cd"){ 
+            let dir_path = Path::new(&command[4..]);
+            
+            if dir_path.is_dir() {
+                std::env::set_current_dir(&dir_path).unwrap();
+            }else{
+                println!("cd {}: No such file or directory", &command[4..])
+            }
+            
         }else if command.starts_with("type") {
             
             let command_args = &command[5..];
