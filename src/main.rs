@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::os::unix::fs::PermissionsExt;
 use std::process::{Command};
+use std::os::unix::process::CommandExt;
 
 
 fn get_command_path(path: &str, command: &str) -> Option<PathBuf> {
@@ -71,10 +72,11 @@ fn main() {
             
             
             match get_command_path(&path, program) {
-                Some(_) => {
+                Some(fp) => {
                     
                     
-                  let out = Command::new(program)
+                  let out = Command::new(fp)
+                      .arg0(program)
                       .args(args)
                       .output()
                       .expect("Failed to execute command");
