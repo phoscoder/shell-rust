@@ -15,7 +15,6 @@ fn tokenize(input: &str) -> Vec<String> {
 
     while let Some(ch) = chars.next() {
         if escape_next {
-            
             if ch == '\\' {
                 current_token += "\\";
             } else {
@@ -24,11 +23,28 @@ fn tokenize(input: &str) -> Vec<String> {
             escape_next = false;
             continue;
         }
-        
+
         match ch {
-            '\\' if !in_single_quote && !in_double_quote => {
-                escape_next = true;
+            '\\' => {
+                if in_single_quote {
+                    current_token.push('\\');
+                } else if in_double_quote {
+                    if let Some(&next_ch) = chars.peek() {
+                        if next_ch == '"' || next_ch == '\\' {
+                            escape_next = true;
+                        } else {
+                            current_token.push('\\');
+                        }
+                    } else {
+                        current_token.push('\\');
+                    }
+                } else {
+                    escape_next = true;
+                }
             }
+            // '\\' if !in_single_quote && !in_double_quote => {
+            //     escape_next = true;
+            // }
             '\'' if !in_double_quote => {
                 // Toggle single quote mode
                 in_single_quote = !in_single_quote;
@@ -99,11 +115,11 @@ fn main() {
         if command.starts_with("echo") {
             // println!("{}", &command[5..]);
             let tokens = tokenize(&command);
-                if tokens.len() > 1 {
-                    println!("{}", tokens[1..].join(" "));
-                } else {
-                    println!();
-                }
+            if tokens.len() > 1 {
+                println!("{}", tokens[1..].join(" "));
+            } else {
+                println!();
+            }
         } else if command.starts_with("pwd") {
             println!("{}", std::env::current_dir().unwrap().display());
         } else if command.starts_with("cd") {
