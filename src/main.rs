@@ -10,10 +10,20 @@ fn tokenize(input: &str) -> Vec<String> {
     let mut current_token = String::new();
     let mut in_single_quote = false;
     let mut in_double_quote = false;
+    let mut escape_next = false;
     let mut chars = input.chars().peekable();
 
     while let Some(ch) = chars.next() {
+        if escape_next {
+            current_token.push(ch);
+            escape_next = false;
+            continue;
+        }
+        
         match ch {
+            '\\' if !in_single_quote && !in_double_quote => {
+                escape_next = true;
+            }
             '\'' if !in_double_quote => {
                 // Toggle single quote mode
                 in_single_quote = !in_single_quote;
