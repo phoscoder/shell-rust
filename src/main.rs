@@ -9,15 +9,19 @@ fn tokenize(input: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current_token = String::new();
     let mut in_single_quote = false;
+    let mut in_double_quote = false;
     let mut chars = input.chars().peekable();
 
     while let Some(ch) = chars.next() {
         match ch {
-            '\'' => {
+            '\'' if !in_double_quote => {
                 // Toggle single quote mode
                 in_single_quote = !in_single_quote;
             }
-            ' ' | '\t' if !in_single_quote => {
+            '"' if !in_single_quote => {
+                in_double_quote = !in_double_quote;
+            }
+            ' ' | '\t' if !in_single_quote && !in_double_quote => {
                 // Whitespace outside quotes: end current token
                 if !current_token.is_empty() {
                     tokens.push(current_token.clone());
