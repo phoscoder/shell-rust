@@ -37,7 +37,7 @@ fn main() {
         let mut command = String::new();
         io::stdin().read_line(&mut command).unwrap();
         
-        let builtins = ["echo", "exit", "type"];
+        let builtins = ["echo", "exit", "type", "pwd"];
         
         
         
