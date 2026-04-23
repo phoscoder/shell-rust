@@ -49,6 +49,7 @@ fn main() {
         
         if command == "pwd" {
             println!("{}", std::env::current_dir().unwrap().display());
+            continue;
         }
         
         if command.starts_with("echo") {
