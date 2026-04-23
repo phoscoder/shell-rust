@@ -12,7 +12,6 @@ fn tokenize(input: &str) -> (Vec<String>, Option<String>) {
     let mut in_double_quote = false;
     let mut escape_next = false;
     
-    let mut redirect_type = "";
     let mut redirect_file: Option<String> = None;
     
     let mut chars = input.chars().peekable();
@@ -180,9 +179,6 @@ fn main() {
                 }
             }
         } else {
-            let mut parts = command.split_whitespace();
-            // let program = parts.next().unwrap();
-            // let args: Vec<&str> = parts.collect();
 
             if tokens.is_empty() {
                 continue;
@@ -199,7 +195,7 @@ fn main() {
                             let f = std::fs::File::create(file).expect("failed to open file");
                             Stdio::from(f)
                         }
-                        None => Stdio::inherit(),
+                        _ => Stdio::inherit(),
                     };
                     
                     Command::new(fp)
