@@ -71,10 +71,10 @@ fn main() {
             
             
             match get_command_path(&path, program) {
-                Some(fp) => {
+                Some(_) => {
                     
                     
-                  let out = Command::new(fp)
+                  let out = Command::new(program)
                       .args(args)
                       .output()
                       .expect("Failed to execute command");
