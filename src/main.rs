@@ -31,13 +31,17 @@ fn tokenize(input: &str) -> (Vec<String>, Option<String>) {
         
         if !in_single_quote && !in_double_quote {
             
-            if ch == '>' {
+            if ch == '>' || (ch == '1' && chars.peek() == Some(&'>')) {
                 if !current_token.is_empty() {
                     tokens.push(current_token.clone());
                     current_token.clear();
                 } 
                 
-                while let Some(' ') = chars.peek() {
+                if chars.peek() == Some(&'>') {
+                    chars.next();
+                }
+                
+                while let Some(' ') = chars.peek(){
                     chars.next();
                 }
                 
