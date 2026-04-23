@@ -5,12 +5,16 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-fn tokenize(input: &str) -> Vec<String> {
+fn tokenize(input: &str) -> (Vec<String>, Option<String>) {
     let mut tokens = Vec::new();
     let mut current_token = String::new();
     let mut in_single_quote = false;
     let mut in_double_quote = false;
     let mut escape_next = false;
+    
+    let mut redirect_type = "";
+    let mut redirect_file: Option<String> = None;
+    
     let mut chars = input.chars().peekable();
 
     while let Some(ch) = chars.next() {
@@ -22,6 +26,35 @@ fn tokenize(input: &str) -> Vec<String> {
             }
             escape_next = false;
             continue;
+        }
+        
+        
+        if !in_single_quote && !in_double_quote {
+            
+            if ch == '>' {
+                if !current_token.is_empty() {
+                    tokens.push(current_token.clone());
+                    current_token.clear();
+                } 
+                
+                while let Some(' ') = chars.peek() {
+                    chars.next();
+                }
+                
+                let mut file = String::new();
+                while let Some(&c) = chars.peek() {
+                    if c == ' ' || c == '\t' {
+                        break;
+                    }
+                    
+                    file.push(c);
+                    chars.next();
+                }
+                
+                redirect_file = Some(file);
+                continue
+                
+            }
         }
 
         match ch {
@@ -42,9 +75,6 @@ fn tokenize(input: &str) -> Vec<String> {
                     escape_next = true;
                 }
             }
-            // '\\' if !in_single_quote && !in_double_quote => {
-            //     escape_next = true;
-            // }
             '\'' if !in_double_quote => {
                 // Toggle single quote mode
                 in_single_quote = !in_single_quote;
@@ -71,7 +101,7 @@ fn tokenize(input: &str) -> Vec<String> {
         tokens.push(current_token);
     }
 
-    tokens
+    (tokens, redirect_file)
 }
 
 fn get_command_path(path: &str, command: &str) -> Option<PathBuf> {
@@ -107,6 +137,8 @@ fn main() {
         let builtins = ["echo", "exit", "type", "pwd", "cd"];
 
         command = command.trim().to_string();
+        
+        let (tokens, redirect_file) = tokenize(&command);
 
         if command == "exit" {
             break;
@@ -114,7 +146,7 @@ fn main() {
 
         if command.starts_with("echo") {
             // println!("{}", &command[5..]);
-            let tokens = tokenize(&command);
+           
             if tokens.len() > 1 {
                 println!("{}", tokens[1..].join(" "));
             } else {
@@ -148,8 +180,6 @@ fn main() {
             // let program = parts.next().unwrap();
             // let args: Vec<&str> = parts.collect();
 
-            let tokens = tokenize(&command);
-
             if tokens.is_empty() {
                 continue;
             }
@@ -159,11 +189,20 @@ fn main() {
 
             match get_command_path(&path, program) {
                 Some(fp) => {
+                    
+                    let stdout = match redirect_file {
+                        Some(file) => {
+                            let f = std::fs::File::create(file).expect("failed to open file");
+                            Stdio::from(f)
+                        }
+                        None => Stdio::inherit(),
+                    };
+                    
                     Command::new(fp)
                         .arg0(program)
                         .args(args)
                         .stdin(Stdio::inherit())
-                        .stdout(Stdio::inherit())
+                        .stdout(stdout)
                         .stderr(Stdio::inherit())
                         .spawn()
                         .expect("Failed to execute command")
