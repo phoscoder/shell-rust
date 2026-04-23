@@ -78,7 +78,7 @@ fn main() {
                 Some(fp) => {
                     
                     
-                  let out = Command::new(fp)
+                Command::new(fp)
                       .arg0(program)
                       .args(args)
                       .stdin(Stdio::inherit())
