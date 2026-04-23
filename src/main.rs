@@ -59,7 +59,7 @@ fn main() {
             if dir_path.is_dir() {
                 std::env::set_current_dir(&dir_path).unwrap();
             }else{
-                println!("cd {}: No such file or directory", &command[3..])
+                println!("cd: {}: No such file or directory", &command[3..])
             }
             
         }else if command.starts_with("type") {
