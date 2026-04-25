@@ -11,10 +11,10 @@ fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
     let mut in_single_quote = false;
     let mut in_double_quote = false;
     let mut escape_next = false;
-    
+
     let mut redirect_file: Option<String> = None;
     let mut redirect_type: i8 = 1;
-    
+
     let mut chars = input.chars().peekable();
 
     while let Some(ch) = chars.next() {
@@ -27,45 +27,40 @@ fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
             escape_next = false;
             continue;
         }
-        
-        
+
         if !in_single_quote && !in_double_quote {
-            
             let ch_is_redirect = ch == '1' || ch == '2';
-            
+
             if ch == '>' || (ch_is_redirect && chars.peek() == Some(&'>')) {
-                
-                
                 if ch == '2' {
                     redirect_type = 2;
                 }
-                
+
                 if !current_token.is_empty() {
                     tokens.push(current_token.clone());
                     current_token.clear();
-                } 
-                
+                }
+
                 if chars.peek() == Some(&'>') {
                     chars.next();
                 }
-                
-                while let Some(' ') = chars.peek(){
+
+                while let Some(' ') = chars.peek() {
                     chars.next();
                 }
-                
+
                 let mut file = String::new();
                 while let Some(&c) = chars.peek() {
                     if c == ' ' || c == '\t' {
                         break;
                     }
-                    
+
                     file.push(c);
                     chars.next();
                 }
-                
+
                 redirect_file = Some(file);
-                continue
-                
+                continue;
             }
         }
 
@@ -146,43 +141,60 @@ fn main() {
         let mut command = String::new();
         io::stdin().read_line(&mut command).unwrap();
 
-        let builtins = [ "exit", "type", "pwd", "cd"];
+        let builtins = ["echo", "exit", "type", "pwd", "cd"];
 
         command = command.trim().to_string();
-        
+
         let (tokens, (redirect_type, redirect_file)) = tokenize(&command);
 
         if command == "exit" {
             break;
         }
 
-        // if command.starts_with("echo") {
+        if command.starts_with("echo") {
             // println!("{}", &command[5..]);
-           
+
             // if tokens.len() > 1 {
             //     println!("{}", tokens[1..].join(" "));
             // } else {
             //     println!();
             // }
-        //     let output = if tokens.len() > 1 {
-        //             tokens[1..].join(" ")
-        //         } else {
-        //             String::new()
-        //         };
+            let output = if tokens.len() > 1 {
+                tokens[1..].join(" ")
+            } else {
+                String::new()
+            };
+
+            match redirect_type {
+                1 => {
+                    // stdout redirected
+                    if let Some(file) = &redirect_file {
+                        match File::create(file) {
+                            Ok(mut f) => {
+                                writeln!(f, "{}", output).unwrap();
+                            }
+                            Err(e) => {
+                                writeln!(io::stderr(), "{}", e).unwrap();
+                            }
+                        }
+                    }
+                }
+                2 => {
+                    // stderr redirected, but echo doesn't use stderr
+                    // so just print normally to stdout
+                    println!("{}", output);
             
-        //         match &redirect_file {
-        //             Some(file) => {
-        //                 let mut f = std::fs::File::create(file).expect("failed to open file");
-        //                 writeln!(f, "{}", output).unwrap();
-        //             }
-        //             _ => {
-        //                 println!("{}", output);
-        //             }
-        //         }
-            
-            
-        // } 
-        else if command.starts_with("pwd") {
+                    // optionally: create empty file like real shells sometimes do
+                    if let Some(file) = &redirect_file {
+                        let _ = File::create(file);
+                    }
+                }
+                _ => {
+                    // no redirection
+                    println!("{}", output);
+                }
+            }
+        } else if command.starts_with("pwd") {
             println!("{}", std::env::current_dir().unwrap().display());
         } else if command.starts_with("cd") {
             let home_path = std::env::var("HOME").unwrap();
@@ -206,7 +218,6 @@ fn main() {
                 }
             }
         } else {
-
             if tokens.is_empty() {
                 continue;
             }
@@ -216,11 +227,9 @@ fn main() {
 
             match get_command_path(&path, program) {
                 Some(fp) => {
-                    
-                
                     let mut stdout = Stdio::inherit();
                     let mut stderr = Stdio::inherit();
-                    
+
                     match redirect_type {
                         1 => {
                             if let Some(file) = redirect_file {
@@ -234,13 +243,9 @@ fn main() {
                                 stderr = Stdio::from(f);
                             }
                         }
-                        _ => {
-                            
-                        }
+                        _ => {}
                     }
-                    
-                    
-                    
+
                     Command::new(fp)
                         .arg0(program)
                         .args(args)
