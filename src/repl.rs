@@ -42,7 +42,7 @@ impl Completer for MyCompleter {
         let start = line[..pos].rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
         
-        let matches: Vec<String> = commands
+        let mut matches: Vec<String> = commands
             .iter()
             .filter(|c| c.starts_with(prefix))
             .map(|c| {
@@ -51,6 +51,10 @@ impl Completer for MyCompleter {
                 s
             })
             .collect();
+        
+        if matches.len() == 0 {
+            matches = path::get_command_matches(std::env::var("PATH").unwrap(), prefix);
+        }
         Ok((start, matches))
     }
 }
@@ -62,8 +66,8 @@ pub fn start_shell_repl() {
     rl.set_helper(Some(MyCompleter));
 
     loop {
-        print!("$ ");
-        io::stdout().flush().unwrap();
+        // print!("$ ");
+        // io::stdout().flush().unwrap();
 
         // let mut command = String::new();
         // io::stdin().read_line(&mut command).unwrap();
