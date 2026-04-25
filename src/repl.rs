@@ -87,7 +87,7 @@ impl Completer for MyCompleter {
         println!();
         
         for m in &matches {
-            println!("{} ", m);
+            print!("{} ", m);
         }
         println!();
         
