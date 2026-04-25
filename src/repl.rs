@@ -25,7 +25,7 @@ pub fn start_shell_repl() {
 
         if BUILTINS.contains(&tokens[0].as_str()) {
             let should_break =
-                handle_builtins(&tokens, redirect_type, &redirect_file, &path_var);
+                handle_builtins(&command, &tokens, redirect_type, &redirect_file, &path_var);
 
             if should_break {
                 break;
