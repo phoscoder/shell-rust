@@ -152,13 +152,6 @@ fn main() {
         }
 
         if command.starts_with("echo") {
-            // println!("{}", &command[5..]);
-
-            // if tokens.len() > 1 {
-            //     println!("{}", tokens[1..].join(" "));
-            // } else {
-            //     println!();
-            // }
             let output = if tokens.len() > 1 {
                 tokens[1..].join(" ")
             } else {
@@ -177,6 +170,8 @@ fn main() {
                                 writeln!(io::stderr(), "{}", e).unwrap();
                             }
                         }
+                    } else {
+                         println!("{}", output);
                     }
                 }
                 2 => {
