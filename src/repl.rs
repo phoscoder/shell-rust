@@ -48,11 +48,7 @@ impl Completer for MyCompleter {
         let mut matches: Vec<String> = commands
             .iter()
             .filter(|c| c.starts_with(prefix))
-            .map(|c| {
-                let mut s = c.to_string();
-                s.push(' ');
-                s
-            })
+            .map(|c| c.to_string())
             .collect();
 
         let mut external_matches = path::get_command_matches(std::env::var("PATH").unwrap(), prefix);
