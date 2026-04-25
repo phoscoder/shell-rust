@@ -64,6 +64,13 @@ pub fn handle_builtins(
                     println!("{}", output);
                 }
             }
+            4 => {
+                println!("{}", output);
+
+                if let Some(file) = &redirect_file {
+                    let _ = std::fs::File::create(file);
+                }
+            }
             
             _ => {}
         }
