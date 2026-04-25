@@ -27,7 +27,7 @@ pub fn get_command_matches(path: String, prefix: &str) -> Vec<String> {
                 
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     if name.starts_with(prefix) && is_executable(&path) {
-                        results.push(name.to_string());
+                        results.push(name.to_string() + " ");
                     }
                 }
             }
