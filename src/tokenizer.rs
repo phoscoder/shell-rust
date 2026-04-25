@@ -22,9 +22,10 @@ pub fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
         }
 
         if !in_single_quote && !in_double_quote {
-            let ch_is_redirect = ch == '1' || ch == '2';
+            let redirect_spec = ch == '1' || ch == '2';
+            let next_ch_is_redirect = chars.peek() == Some(&'>');
 
-            if ch == '>' || (ch_is_redirect && chars.peek() == Some(&'>')) {
+            if ch == '>' || (redirect_spec && next_ch_is_redirect)  {
                 if ch == '2' {
                     redirect_type = 2;
                 }
@@ -34,14 +35,15 @@ pub fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
                     current_token.clear();
                 }
                 
-                let mut redirect_cnt = if ch == '1' || ch == '>' { 1 } else {0};
+                let mut redirect_cnt = if  ch == '>'{ 1 } else {0};
                 
 
-                if chars.peek() == Some(&'>') {
-                    chars.next(); redirect_cnt += 1;
+                while chars.peek() == Some(&'>') {
+                    redirect_cnt += 1;
+                    chars.next();
                 }
 
-                if redirect_cnt == 2 {
+                if redirect_cnt >= 2 {
                     redirect_type = 3;
                 }
 

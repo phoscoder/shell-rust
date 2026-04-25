@@ -23,7 +23,7 @@ pub fn start_shell_repl() {
 
         let (tokens, (redirect_type, redirect_file)) = tokenizer::tokenize(&command);
         
-        println!("redirect type: {}", redirect_type);
+        // println!("redirect type: {}", redirect_type);
         
 
         if BUILTINS.contains(&tokens[0].as_str()) {
