@@ -43,8 +43,12 @@ pub fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
                     chars.next();
                 }
 
-                if redirect_cnt >= 2 {
+                if redirect_cnt >= 2 && ch != '2' {
                     redirect_type = 3;
+                } else {
+                    if redirect_cnt >= 2 && ch == '2' {
+                        redirect_type = 4;
+                    }
                 }
 
                 while let Some(' ') = chars.peek() {
