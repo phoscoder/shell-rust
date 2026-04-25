@@ -169,7 +169,7 @@ fn main() {
                 1 => {
                     // stdout redirected
                     if let Some(file) = &redirect_file {
-                        match File::create(file) {
+                        match std::fs::File::create(file) {
                             Ok(mut f) => {
                                 writeln!(f, "{}", output).unwrap();
                             }
