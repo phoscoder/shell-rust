@@ -5,7 +5,7 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-fn tokenize(input: &str) -> (Vec<String>, Option<String>) {
+fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
     let mut tokens = Vec::new();
     let mut current_token = String::new();
     let mut in_single_quote = false;
@@ -13,6 +13,7 @@ fn tokenize(input: &str) -> (Vec<String>, Option<String>) {
     let mut escape_next = false;
     
     let mut redirect_file: Option<String> = None;
+    let mut redirect_type: i8 = 1;
     
     let mut chars = input.chars().peekable();
 
@@ -30,7 +31,15 @@ fn tokenize(input: &str) -> (Vec<String>, Option<String>) {
         
         if !in_single_quote && !in_double_quote {
             
-            if ch == '>' || (ch == '1' && chars.peek() == Some(&'>')) {
+            let ch_is_redirect = ch == '1' || ch == '2';
+            
+            if ch == '>' || (ch_is_redirect && chars.peek() == Some(&'>')) {
+                
+                
+                if ch == '2' {
+                    redirect_type = 2;
+                }
+                
                 if !current_token.is_empty() {
                     tokens.push(current_token.clone());
                     current_token.clear();
@@ -104,7 +113,7 @@ fn tokenize(input: &str) -> (Vec<String>, Option<String>) {
         tokens.push(current_token);
     }
 
-    (tokens, redirect_file)
+    (tokens, (redirect_type, redirect_file))
 }
 
 fn get_command_path(path: &str, command: &str) -> Option<PathBuf> {
@@ -141,7 +150,7 @@ fn main() {
 
         command = command.trim().to_string();
         
-        let (tokens, redirect_file) = tokenize(&command);
+        let (tokens, (redirect_type, redirect_file)) = tokenize(&command);
 
         if command == "exit" {
             break;
@@ -207,20 +216,36 @@ fn main() {
             match get_command_path(&path, program) {
                 Some(fp) => {
                     
-                    let stdout = match redirect_file {
-                        Some(file) => {
-                            let f = std::fs::File::create(file).expect("failed to open file");
-                            Stdio::from(f)
+                
+                    let mut stdout = Stdio::inherit();
+                    let mut stderr = Stdio::inherit();
+                    
+                    match redirect_type {
+                        1 => {
+                            if let Some(file) = redirect_file {
+                                let f = std::fs::File::create(file).expect("failed to open file");
+                                stdout = Stdio::from(f);
+                            }
                         }
-                        _ => Stdio::inherit(),
-                    };
+                        2 => {
+                            if let Some(file) = redirect_file {
+                                let f = std::fs::File::create(file).expect("failed to open file");
+                                stderr = Stdio::from(f);
+                            }
+                        }
+                        _ => {
+                            
+                        }
+                    }
+                    
+                    
                     
                     Command::new(fp)
                         .arg0(program)
                         .args(args)
                         .stdin(Stdio::inherit())
                         .stdout(stdout)
-                        .stderr(Stdio::inherit())
+                        .stderr(stderr)
                         .spawn()
                         .expect("Failed to execute command")
                         .wait()
