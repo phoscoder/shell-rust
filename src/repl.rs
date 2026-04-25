@@ -1,6 +1,7 @@
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::cell::RefCell;
 
 use rustyline::completion::Completer;
 use rustyline::error::ReadlineError;
@@ -18,7 +19,9 @@ use crate::exec;
 use crate::path;
 use crate::tokenizer;
 
-struct MyCompleter; 
+struct MyCompleter {
+    last_tab: RefCell<bool>,
+}
 
 impl Helper for MyCompleter {}
 impl Hinter for MyCompleter {
@@ -51,11 +54,49 @@ impl Completer for MyCompleter {
                 s
             })
             .collect();
+
+        let mut external_matches = path::get_command_matches(std::env::var("PATH").unwrap(), prefix);
+        matches.append(&mut external_matches);
         
-        if matches.len() == 0 {
-            matches = path::get_command_matches(std::env::var("PATH").unwrap(), prefix);
+        matches.sort();
+        matches.dedup();
+        
+        if matches.is_empty() {
+            *self.last_tab.borrow_mut() = false;
+            return Ok((start, vec![]));
         }
-        Ok((start, matches))
+        
+        if matches.len() == 1 {
+            let mut s = matches[0].clone();
+            s.push(' ');
+            *self.last_tab.borrow_mut() = false;
+            return Ok((start, vec![s]));
+        }
+        
+        let mut last_tab = self.last_tab.borrow_mut();
+        
+        if !*last_tab {
+            print!("\x07");
+            std::io::stdout().flush().unwrap();
+            
+            *last_tab = true; 
+            
+            return Ok((start, vec![]));
+        }
+        
+        println!();
+        
+        for m in &matches {
+            println!("{} ", m);
+        }
+        println!();
+        
+        *last_tab = false;
+        
+        print!("$ {}", line);
+        std::io::stdout().flush().unwrap();
+        
+        Ok((start, vec![]))
     }
 }
 
@@ -63,7 +104,9 @@ pub fn start_shell_repl() {
     let path_var = std::env::var("PATH").unwrap();
     
     let mut rl: Editor<MyCompleter, DefaultHistory> = Editor::new().unwrap();
-    rl.set_helper(Some(MyCompleter));
+    rl.set_helper(Some(MyCompleter{
+        last_tab: RefCell::new(false),
+    }));
 
     loop {
         // print!("$ ");
@@ -86,6 +129,10 @@ pub fn start_shell_repl() {
         let (tokens, (redirect_type, redirect_file)) = tokenizer::tokenize(&command);
         
         // println!("redirect type: {}", redirect_type);
+        
+        if tokens.is_empty() {
+            continue;
+        }
         
 
         if BUILTINS.contains(&tokens[0].as_str()) {
