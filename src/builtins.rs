@@ -1,6 +1,7 @@
 
 use std::io::{self, Write};
 use std::path::{Path};
+use std::fs::OpenOptions;
 
 use crate::path;
 
@@ -43,6 +44,27 @@ pub fn handle_builtins(
                     let _ = std::fs::File::create(file);
                 }
             }
+            3 => {
+
+
+                if let Some(file) = &redirect_file {
+                    match OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(file)
+                    {
+                        Ok(mut f) => {
+                            writeln!(f, "{}", output).unwrap();
+                        }
+                        Err(e) => {
+                            writeln!(io::stderr(), "{}", e).unwrap();
+                        }
+                    }
+                } else {
+                    println!("{}", output);
+                }
+            }
+            
             _ => {}
         }
     } else if command.starts_with("pwd") {

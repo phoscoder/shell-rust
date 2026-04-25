@@ -33,9 +33,16 @@ pub fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
                     tokens.push(current_token.clone());
                     current_token.clear();
                 }
+                
+                let mut redirect_cnt = if ch == '1' || ch == '>' { 1 } else {0};
+                
 
                 if chars.peek() == Some(&'>') {
-                    chars.next();
+                    chars.next(); redirect_cnt += 1;
+                }
+
+                if redirect_cnt == 2 {
+                    redirect_type = 3;
                 }
 
                 while let Some(' ') = chars.peek() {

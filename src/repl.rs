@@ -22,6 +22,7 @@ pub fn start_shell_repl() {
         command = command.trim().to_string();
 
         let (tokens, (redirect_type, redirect_file)) = tokenizer::tokenize(&command);
+        
 
         if BUILTINS.contains(&tokens[0].as_str()) {
             let should_break =

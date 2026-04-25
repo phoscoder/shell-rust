@@ -32,6 +32,17 @@ pub fn run_external(
                         stderr = Stdio::from(f);
                     }
                 }
+                3 => {
+                    if let Some(file) = redirect_file {
+                        let append_file = std::fs::OpenOptions::new()
+                                        .append(true)
+                                        .create(true)
+                                        .open(file)
+                                        .expect("failed to open file");
+                        stdout = Stdio::from(append_file);  
+                            
+                    }
+                }
                 _ => {}
             }
 
