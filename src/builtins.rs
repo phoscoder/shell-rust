@@ -7,14 +7,14 @@ use crate::path;
 pub const BUILTINS: [&str; 5] = ["echo", "exit", "type", "pwd", "cd"];
 
 pub fn handle_builtins(
-    command: &str,
     tokens: &[String],
     redirect_type: i8,
     redirect_file: &Option<String>,
     path: &str,
 ) -> bool {
     
-
+    let command = &tokens[0];
+    
     if command.starts_with("echo") {
         let output = if tokens.len() > 1 {
             tokens[1..].join(" ")
