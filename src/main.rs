@@ -160,7 +160,6 @@ fn main() {
 
             match redirect_type {
                 1 => {
-                    // stdout redirected
                     if let Some(file) = &redirect_file {
                         match std::fs::File::create(file) {
                             Ok(mut f) => {
@@ -175,19 +174,13 @@ fn main() {
                     }
                 }
                 2 => {
-                    // stderr redirected, but echo doesn't use stderr
-                    // so just print normally to stdout
                     println!("{}", output);
-            
-                    // optionally: create empty file like real shells sometimes do
+        
                     if let Some(file) = &redirect_file {
                         let _ = std::fs::File::create(file);
                     }
                 }
-                _ => {
-                    // no redirection
-                    println!("{}", output);
-                }
+                _ => {}
             }
         } else if command.starts_with("pwd") {
             println!("{}", std::env::current_dir().unwrap().display());
