@@ -186,7 +186,7 @@ fn main() {
             
                     // optionally: create empty file like real shells sometimes do
                     if let Some(file) = &redirect_file {
-                        let _ = File::create(file);
+                        let _ = std::fs::File::create(file);
                     }
                 }
                 _ => {
