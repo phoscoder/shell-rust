@@ -56,12 +56,14 @@ impl Completer for MyCompleter {
         
         matches.sort();
         matches.dedup();
-        
+    
+        /* ---------------- single match ---------------- */
         if matches.is_empty() {
             *self.last_tab.borrow_mut() = false;
             return Ok((start, vec![]));
         }
         
+        /* ---------------- single match ---------------- */
         if matches.len() == 1 {
             let mut s = matches[0].clone();
             s.push(' ');
@@ -69,6 +71,15 @@ impl Completer for MyCompleter {
             return Ok((start, vec![s]));
         }
         
+        /* ---------------- multiple matches ---------------- */
+        let lcp = longest_common_prefix(&matches);
+        
+        if lcp.len() > prefix.len() {
+            *self.last_tab.borrow_mut() = false;
+            return Ok((start, vec![lcp]));
+        }
+        
+        /* ---------------- TAB behavior (no LCP) ---------------- */
         let mut last_tab = self.last_tab.borrow_mut();
         
         if !*last_tab {
@@ -80,6 +91,7 @@ impl Completer for MyCompleter {
             return Ok((start, vec![]));
         }
         
+        // SECOND TAB → print all matches
         println!();
         
         for m in &matches {
@@ -94,6 +106,36 @@ impl Completer for MyCompleter {
         
         Ok((start, vec![]))
     }
+}
+
+
+
+fn longest_common_prefix(strings: &[String]) -> String {
+    if strings.is_empty() {
+        return String::new();
+    }
+    
+    let mut prefix = strings[0].clone();
+    
+    for s in strings.iter().skip(1) {
+        let mut new_prefix = String::new();
+        
+        for (a, b) in prefix.chars().zip(s.chars()) {
+            if a == b {
+                new_prefix.push(a);
+            } else {
+                break;
+            }
+        }
+        
+        prefix = new_prefix;
+        
+        if prefix.is_empty() {
+            break;
+        }
+     }
+     
+     prefix
 }
 
 pub fn start_shell_repl() {
