@@ -187,7 +187,7 @@ fn list_dir(dir: &Path, partial: &str) -> Vec<String> {
             let name = entry.file_name();
             let name_str = name.to_string_lossy();
 
-            if name_str.starts_with(partial) {
+            if partial.is_empty() || name_str.starts_with(partial) {
                 let mut full_path = if dir == Path::new(".") {
                     PathBuf::from(&*name_str)
                 } else {
