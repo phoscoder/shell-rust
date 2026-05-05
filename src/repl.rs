@@ -147,22 +147,39 @@ fn longest_common_prefix(strings: &[String]) -> String {
 }
 
 fn get_file_completions(prefix: &str) -> Vec<String> {
-    let mut results = Vec::new();
+
+    if prefix.is_empty() {
+        return list_dir(Path::new("."), "");
+    }
+
     let path = Path::new(prefix);
 
-    let (dir, file_prefix) = match path.parent() {
-        Some(parent) if prefix.contains("/") => (parent, path.file_name().unwrap_or_default()),
-        _ => (Path::new("."), path.as_os_str())
+    if prefix.ends_with('/') {
+        return list_dir(path, "")
+    }
+
+
+    let (dir, partial) = match path.parent() {
+        Some(parent) => {
+            let file = path.file_name().unwrap_or_default().to_string_lossy();
+            (parent, file)
+        }
+        _ => (Path::new("."), prefix.into()),
     };
 
-    let file_prefix = file_prefix.to_string_lossy();
+    list_dir(dir, &partial)
+}
 
+fn list_dir(dir: &Path, partial: &str) -> Vec<String> {
+
+    let mut results = Vec::new();
+    
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let name = entry.file_name();
             let name_str = name.to_string_lossy();
 
-            if name_str.starts_with(&*file_prefix) {
+            if name_str.starts_with(partial) {
                 let mut full = if dir == Path::new(".") {
                     PathBuf::from(&*name_str)
                 } else {
