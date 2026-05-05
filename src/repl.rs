@@ -73,9 +73,18 @@ impl Completer for MyCompleter {
         
         /* ---------------- single match ---------------- */
         if matches.len() == 1 {
+            // let mut s = matches[0].clone();
+            // s.push(' ');
+            // *self.last_tab.borrow_mut() = false;
+            // return Ok((start, vec![s]));
+
+
             let mut s = matches[0].clone();
-            s.push(' ');
-            *self.last_tab.borrow_mut() = false;
+            
+            if !s.ends_with('/') {
+                s.push(' ');
+            }
+            
             return Ok((start, vec![s]));
         }
         
