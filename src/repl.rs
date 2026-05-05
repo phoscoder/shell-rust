@@ -1,5 +1,4 @@
 use std::os::unix::process::CommandExt;
-use std::path::Path;
 use std::process::{Command, Stdio};
 use std::cell::RefCell;
 
@@ -10,6 +9,9 @@ use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Context, Helper, Editor};
 use rustyline::history::DefaultHistory;
+
+use std::fs;
+use std::path::{Path, PathBuf};
 
 
 use std::io::{self, Write};
@@ -138,6 +140,41 @@ fn longest_common_prefix(strings: &[String]) -> String {
      prefix
 }
 
+fn get_file_completions(prefix: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    let path = Path::new(prefix);
+
+    let (dir, file_prefix) = match path.parent() {
+        Some(parent) if prefix.contains("/") => (parent, path.file_name().unwrap_or_default()),
+        _ => (Path::new("."), path.as_os_str())
+    };
+
+    let file_prefix = file_prefix.to_string_lossy();
+
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+
+            if name_str.starts_with(&*file_prefix) {
+                let mut full = if dir == Path::new(".") {
+                    PathBuf::from(&*name_str)
+                } else {
+                    dir.join(&*name_str)
+                };
+
+                if full.is_dir() {
+                    full.push("")
+                }
+
+                results.push(full.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    results
+}
+
 pub fn start_shell_repl() {
     let path_var = std::env::var("PATH").unwrap();
     
@@ -147,11 +184,6 @@ pub fn start_shell_repl() {
     }));
 
     loop {
-        // print!("$ ");
-        // io::stdout().flush().unwrap();
-
-        // let mut command = String::new();
-        // io::stdin().read_line(&mut command).unwrap();
         
         let readline = rl.readline("$ ");
         
