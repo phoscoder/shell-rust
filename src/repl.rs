@@ -89,6 +89,8 @@ impl Completer for MyCompleter {
             if !s.ends_with('/') {
                 s.push(' ');
             }
+
+            *self.last_tab.borrow_mut() = false;
             
             return Ok((start, vec![s]));
         }
