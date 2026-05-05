@@ -46,12 +46,18 @@ impl Completer for MyCompleter {
         
         let start = line[..pos].rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
+
+        let is_first_word = start == 0;
         
-        let mut matches: Vec<String> = commands
+        let mut matches: Vec<String> = if is_first_word {
+           commands
             .iter()
             .filter(|c| c.starts_with(prefix))
             .map(|c| c.to_string())
-            .collect();
+            .collect()
+        } else {
+          get_file_completions(prefix)  
+        };  
 
         let mut external_matches = path::get_command_matches(std::env::var("PATH").unwrap(), prefix);
         matches.append(&mut external_matches);
