@@ -49,15 +49,17 @@ impl Completer for MyCompleter {
 
         let is_first_word = start == 0;
         
-        let mut matches: Vec<String> = if is_first_word {
-           commands
-            .iter()
-            .filter(|c| c.starts_with(prefix))
-            .map(|c| c.to_string())
-            .collect()
+        let mut matches = if start == 0 && prefix.len() > 0 {
+            // optional: command completion only when typing command prefix
+            commands
+                .iter()
+                .filter(|c| c.starts_with(prefix))
+                .map(|c| c.to_string())
+                .collect()
         } else {
-          get_file_completions(prefix)  
-        };  
+            // 🔥 ALWAYS allow file completion
+            get_file_completions(prefix)
+        };
 
         let mut external_matches = path::get_command_matches(std::env::var("PATH").unwrap(), prefix);
         matches.append(&mut external_matches);
