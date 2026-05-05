@@ -1,29 +1,24 @@
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
-use std::cell::RefCell;
 
 use rustyline::completion::Completer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
-use rustyline::{Context, Helper, Editor};
+use rustyline::{CompletionType, Config, Context, Helper, Editor};
 use rustyline::history::DefaultHistory;
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 
-use std::io::{self, Write};
-
 use crate::builtins::{BUILTINS, handle_builtins};
 use crate::exec;
 use crate::path;
 use crate::tokenizer;
 
-struct MyCompleter {
-    last_tab: RefCell<bool>,
-}
+struct MyCompleter;
 
 impl Helper for MyCompleter {}
 impl Hinter for MyCompleter {
@@ -46,7 +41,6 @@ impl Completer for MyCompleter {
         
         let start = line[..pos].rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
-
         let is_first_word = start == 0;
         
         let mut matches = if start == 0 && prefix.len() > 0 {
@@ -72,25 +66,16 @@ impl Completer for MyCompleter {
     
         /* ---------------- single match ---------------- */
         if matches.is_empty() {
-            *self.last_tab.borrow_mut() = false;
             return Ok((start, vec![]));
         }
         
         /* ---------------- single match ---------------- */
         if matches.len() == 1 {
-            // let mut s = matches[0].clone();
-            // s.push(' ');
-            // *self.last_tab.borrow_mut() = false;
-            // return Ok((start, vec![s]));
-
-
             let mut s = matches[0].clone();
             
             if !s.ends_with('/') {
                 s.push(' ');
             }
-
-            *self.last_tab.borrow_mut() = false;
             
             return Ok((start, vec![s]));
         }
@@ -99,36 +84,10 @@ impl Completer for MyCompleter {
         let lcp = longest_common_prefix(&matches);
         
         if lcp.len() > prefix.len() {
-            *self.last_tab.borrow_mut() = false;
             return Ok((start, vec![lcp]));
         }
-        
-        /* ---------------- TAB behavior (no LCP) ---------------- */
-        let mut last_tab = self.last_tab.borrow_mut();
-        
-        if !*last_tab {
-            print!("\x07");
-            std::io::stdout().flush().unwrap();
-            
-            *last_tab = true; 
-            
-            return Ok((start, vec![]));
-        }
-        
-        // SECOND TAB → print all matches
-        println!();
-        
-        for m in &matches {
-            print!("{} ", m);
-        }
-        println!();
-        
-        *last_tab = false;
-        
-        print!("$ {}", line);
-        std::io::stdout().flush().unwrap();
-        
-        Ok((start, vec![]))
+
+        Ok((start, matches))
     }
 }
 
@@ -225,10 +184,11 @@ fn list_dir(dir: &Path, partial: &str) -> Vec<String> {
 pub fn start_shell_repl() {
     let path_var = std::env::var("PATH").unwrap();
     
-    let mut rl: Editor<MyCompleter, DefaultHistory> = Editor::new().unwrap();
-    rl.set_helper(Some(MyCompleter{
-        last_tab: RefCell::new(false),
-    }));
+    let config = Config::builder()
+        .completion_type(CompletionType::List)
+        .build();
+    let mut rl: Editor<MyCompleter, DefaultHistory> = Editor::with_config(config).unwrap();
+    rl.set_helper(Some(MyCompleter));
 
     loop {
         
