@@ -61,8 +61,11 @@ impl Completer for MyCompleter {
             get_file_completions(prefix)
         };
 
-        let mut external_matches = path::get_command_matches(std::env::var("PATH").unwrap(), prefix);
-        matches.append(&mut external_matches);
+        if is_first_word {
+            let mut external_matches =
+                path::get_command_matches(std::env::var("PATH").unwrap_or_default(), prefix);
+            matches.append(&mut external_matches);
+        }
         
         matches.sort();
         matches.dedup();
