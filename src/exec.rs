@@ -39,7 +39,7 @@ pub fn run_external(
                                         .create(true)
                                         .open(file)
                                         .expect("failed to open file");
-                        stdout = Stdio::from(append_file);  
+                        stdout = Stdio::from(append_file); 
                             
                     }
                 }

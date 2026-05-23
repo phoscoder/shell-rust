@@ -5,7 +5,7 @@ use std::fs::OpenOptions;
 
 use crate::path;
 
-pub const BUILTINS: [&str; 5] = ["echo", "exit", "type", "pwd", "cd"];
+pub const BUILTINS: [&str; 6] = ["echo", "exit", "type", "pwd", "cd", "complete"];
 
 pub fn handle_builtins(
     command: &str,

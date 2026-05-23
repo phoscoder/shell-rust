@@ -41,7 +41,6 @@ impl Completer for MyCompleter {
         
         let start = line[..pos].rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
-        let is_first_word = start == 0;
         
         let mut matches = if start == 0 && prefix.len() > 0 {
             // optional: command completion only when typing command prefix
@@ -51,15 +50,9 @@ impl Completer for MyCompleter {
                 .map(|c| c.to_string())
                 .collect()
         } else {
-            // 🔥 ALWAYS allow file completion
+
             get_file_completions(prefix)
         };
-
-        if is_first_word {
-            let mut external_matches =
-                path::get_command_matches(std::env::var("PATH").unwrap_or_default(), prefix);
-            matches.append(&mut external_matches);
-        }
         
         matches.sort();
         matches.dedup();
