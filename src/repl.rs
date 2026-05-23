@@ -37,6 +37,7 @@ impl Completer for MyCompleter {
         pos: usize,
         _: &rustyline::Context
     ) -> rustyline::Result<(usize, Vec<String>)> {
+        
         let start = line[..pos].rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
         

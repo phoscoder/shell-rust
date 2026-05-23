@@ -74,6 +74,12 @@ pub fn handle_builtins(
             
             _ => {}
         }
+    } else if command.starts_with("complete") {
+        if command.contains("-p") {
+            let complete_command = &command[12..].trim();
+           
+           println!("complete: {}: no completion specification", complete_command); 
+        }
     } else if command.starts_with("pwd") {
         println!("{}", std::env::current_dir().unwrap().display());
     } else if command.starts_with("cd") {
