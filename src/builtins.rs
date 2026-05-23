@@ -84,9 +84,11 @@ pub fn handle_builtins(
             let reg = registry.lock().unwrap();
             if let Some(script) = reg.get(&tokens[2]) {
                 println!("complete -C '{}' {}", script.display(), tokens[2]);
+            }else {
+                println!("complete: {}: no completion specification", tokens[2]); 
             }
            
-           println!("complete: {}: no completion specification", tokens[2]); 
+           
         }
 
         if command.contains("-C") {
