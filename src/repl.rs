@@ -37,20 +37,21 @@ impl Completer for MyCompleter {
         pos: usize,
         _: &rustyline::Context
     ) -> rustyline::Result<(usize, Vec<String>)> {
-        let commands = ["echo", "exit"];
-        
         let start = line[..pos].rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
         
-        let mut matches = if start == 0 && prefix.len() > 0 {
-            // optional: command completion only when typing command prefix
-            commands
+        let mut matches = if start == 0 && !prefix.is_empty() && !prefix.contains('/') {
+            // Completing the command position: suggest builtins + executables from $PATH.
+            let mut results: Vec<String> = BUILTINS
                 .iter()
                 .filter(|c| c.starts_with(prefix))
-                .map(|c| c.to_string())
-                .collect()
-        } else {
+                .map(|c| (*c).to_string())
+                .collect();
 
+            let path_var = std::env::var("PATH").unwrap_or_default();
+            results.extend(path::get_command_matches(path_var, prefix));
+            results
+        } else {
             get_file_completions(prefix)
         };
         
