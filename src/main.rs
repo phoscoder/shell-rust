@@ -5,6 +5,7 @@ mod path;
 mod tokenizer;
 mod builtins;
 mod exec;
+mod completion_registry;
 
 
 fn main() {

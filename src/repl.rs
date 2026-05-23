@@ -1,6 +1,9 @@
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
+use std::sync::{Arc, Mutex};
+use crate::completion_registry::CompletionRegistry;
+
 use rustyline::completion::Completer;
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
@@ -178,6 +181,8 @@ fn list_dir(dir: &Path, partial: &str) -> Vec<String> {
 
 pub fn start_shell_repl() {
     let path_var = std::env::var("PATH").unwrap();
+
+    let registry = Arc::new(Mutex::new(CompletionRegistry::default()));
     
     let config = Config::builder()
         .completion_type(CompletionType::List)
@@ -209,7 +214,13 @@ pub fn start_shell_repl() {
 
         if BUILTINS.contains(&tokens[0].as_str()) {
             let should_break =
-                handle_builtins(&command, &tokens, redirect_type, &redirect_file, &path_var);
+                handle_builtins(
+                    &command, 
+                    &tokens, 
+                    redirect_type, 
+                    &redirect_file, 
+                    &path_var,
+                    &registry);
 
             if should_break {
                 break;

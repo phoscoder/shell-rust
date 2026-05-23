@@ -3,6 +3,9 @@ use std::io::{self, Write};
 use std::path::{Path};
 use std::fs::OpenOptions;
 
+use std::sync::{Arc, Mutex};
+use crate::completion_registry::CompletionRegistry;
+
 use crate::path;
 
 pub const BUILTINS: [&str; 6] = ["echo", "exit", "type", "pwd", "cd", "complete"];
@@ -13,6 +16,7 @@ pub fn handle_builtins(
     redirect_type: i8,
     redirect_file: &Option<String>,
     path: &str,
+    registry: &Arc<Mutex<CompletionRegistry>>
 ) -> bool {
     
     if command.starts_with("echo") {
@@ -76,9 +80,18 @@ pub fn handle_builtins(
         }
     } else if command.starts_with("complete") {
         if command.contains("-p") {
-            let complete_command = &command[12..].trim();
+        
+            let reg = registry.lock().unwrap();
+            if let Some(script) = reg.get(&tokens[2]) {
+                println!("complete -C '{}' {}", script.display(), tokens[2]);
+            }
            
-           println!("complete: {}: no completion specification", complete_command); 
+           println!("complete: {}: no completion specification", tokens[2]); 
+        }
+
+        if command.contains("-C") {
+            let mut reg = registry.lock().unwrap();
+            reg.register(&tokens[3], std::path::PathBuf::from(&tokens[2]));
         }
     } else if command.starts_with("pwd") {
         println!("{}", std::env::current_dir().unwrap().display());
