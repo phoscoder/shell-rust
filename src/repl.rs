@@ -1,4 +1,3 @@
-use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
 use std::sync::{Arc, Mutex};
@@ -21,7 +20,9 @@ use crate::exec;
 use crate::path;
 use crate::tokenizer;
 
-struct MyCompleter;
+struct MyCompleter {
+    registry: Arc<Mutex<CompletionRegistry>>,
+}
 
 impl Helper for MyCompleter {}
 impl Hinter for MyCompleter {
@@ -41,8 +42,13 @@ impl Completer for MyCompleter {
         _: &rustyline::Context
     ) -> rustyline::Result<(usize, Vec<String>)> {
         
-        let start = line[..pos].rfind(' ').map(|p| p + 1).unwrap_or(0);
+        let line_to_pos = &line[..pos];
+        let start = line_to_pos.rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
+
+        if let Some(completions) = self.get_registered_completions(line_to_pos, start) {
+            return Ok((start, completions));
+        }
         
         let mut matches = if start == 0 && !prefix.is_empty() && !prefix.contains('/') {
             // Completing the command position: suggest builtins + executables from $PATH.
@@ -86,6 +92,37 @@ impl Completer for MyCompleter {
         }
 
         Ok((start, matches))
+    }
+}
+
+impl MyCompleter {
+    fn get_registered_completions(&self, line: &str, word_start: usize) -> Option<Vec<String>> {
+        let command = line.split_whitespace().next()?;
+
+        if word_start <= command.len() {
+            return None;
+        }
+
+        let script = {
+            let registry = self.registry.lock().ok()?;
+            registry.get(command).cloned()
+        }?;
+
+        let output = Command::new(script).stdout(Stdio::piped()).output().ok()?;
+
+        let completions = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter_map(|line| {
+                let candidate = line.trim_end();
+                if candidate.is_empty() {
+                    None
+                } else {
+                    Some(format!("{} ", candidate))
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Some(completions)
     }
 }
 
@@ -188,7 +225,9 @@ pub fn start_shell_repl() {
         .completion_type(CompletionType::List)
         .build();
     let mut rl: Editor<MyCompleter, DefaultHistory> = Editor::with_config(config).unwrap();
-    rl.set_helper(Some(MyCompleter));
+    rl.set_helper(Some(MyCompleter {
+        registry: Arc::clone(&registry),
+    }));
 
     loop {
         
