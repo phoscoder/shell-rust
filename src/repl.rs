@@ -46,7 +46,9 @@ impl Completer for MyCompleter {
         let start = line_to_pos.rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
 
-        if let Some(completions) = self.get_registered_completions(line_to_pos, start) {
+        if let Some(completions) =
+            self.get_registered_completions(line_to_pos, start, prefix)
+        {
             return Ok((start, completions));
         }
         
@@ -96,19 +98,36 @@ impl Completer for MyCompleter {
 }
 
 impl MyCompleter {
-    fn get_registered_completions(&self, line: &str, word_start: usize) -> Option<Vec<String>> {
+    fn get_registered_completions(
+        &self,
+        line: &str,
+        word_start: usize,
+        current_word: &str,
+    ) -> Option<Vec<String>> {
         let command = line.split_whitespace().next()?;
 
         if word_start <= command.len() {
             return None;
         }
 
+        let prev_word = line[..word_start]
+            .split_whitespace()
+            .skip(1)
+            .last()
+            .unwrap_or("");
+
         let script = {
             let registry = self.registry.lock().ok()?;
             registry.get(command).cloned()
         }?;
 
-        let output = Command::new(script).stdout(Stdio::piped()).output().ok()?;
+        let output = Command::new(script)
+            .arg(command)
+            .arg(current_word)
+            .arg(prev_word)
+            .stdout(Stdio::piped())
+            .output()
+            .ok()?;
 
         let completions = String::from_utf8_lossy(&output.stdout)
             .lines()
