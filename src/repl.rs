@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use crate::completion_registry::CompletionRegistry;
 
-use rustyline::completion::Completer;
+use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -33,23 +33,23 @@ impl Highlighter for MyCompleter {}
 impl Validator for MyCompleter {}
 
 impl Completer for MyCompleter {
-    type Candidate = String;
+    type Candidate = Pair;
     
     fn complete(
         &self, 
         line: &str,
         pos: usize,
         _: &rustyline::Context
-    ) -> rustyline::Result<(usize, Vec<String>)> {
+    ) -> rustyline::Result<(usize, Vec<Pair>)> {
         
         let line_to_pos = &line[..pos];
         let start = line_to_pos.rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
 
-        if let Some(completions) =
-            self.get_registered_completions(line_to_pos, start, prefix)
-        {
-            return Ok((start, completions));
+        if let Some(mut matches) = self.get_registered_completions(line_to_pos, start, prefix) {
+            matches.sort();
+            matches.dedup();
+            return Ok((start, to_pairs(matches)));
         }
         
         let mut matches = if start == 0 && !prefix.is_empty() && !prefix.contains('/') {
@@ -69,31 +69,8 @@ impl Completer for MyCompleter {
         
         matches.sort();
         matches.dedup();
-    
-        /* ---------------- single match ---------------- */
-        if matches.is_empty() {
-            return Ok((start, vec![]));
-        }
-        
-        /* ---------------- single match ---------------- */
-        if matches.len() == 1 {
-            let mut s = matches[0].clone();
-            
-            if !s.ends_with('/') {
-                s.push(' ');
-            }
-            
-            return Ok((start, vec![s]));
-        }
-        
-        /* ---------------- multiple matches ---------------- */
-        let lcp = longest_common_prefix(&matches);
-        
-        if lcp.len() > prefix.len() {
-            return Ok((start, vec![lcp]));
-        }
 
-        Ok((start, matches))
+        Ok((start, to_pairs(matches)))
     }
 }
 
@@ -137,11 +114,11 @@ impl MyCompleter {
         let completions = String::from_utf8_lossy(&output.stdout)
             .lines()
             .filter_map(|line| {
-                let candidate = line.trim_end();
+                let candidate = line.trim();
                 if candidate.is_empty() {
                     None
                 } else {
-                    Some(format!("{} ", candidate))
+                    Some(candidate.to_string())
                 }
             })
             .collect::<Vec<_>>();
@@ -150,35 +127,26 @@ impl MyCompleter {
     }
 }
 
-
-
-fn longest_common_prefix(strings: &[String]) -> String {
-    if strings.is_empty() {
-        return String::new();
+fn to_pairs(mut matches: Vec<String>) -> Vec<Pair> {
+    if matches.len() == 1 {
+        let m = matches.pop().unwrap();
+        let replacement = if m.ends_with('/') { m.clone() } else { format!("{m} ") };
+        return vec![Pair {
+            display: m,
+            replacement,
+        }];
     }
-    
-    let mut prefix = strings[0].clone();
-    
-    for s in strings.iter().skip(1) {
-        let mut new_prefix = String::new();
-        
-        for (a, b) in prefix.chars().zip(s.chars()) {
-            if a == b {
-                new_prefix.push(a);
-            } else {
-                break;
-            }
-        }
-        
-        prefix = new_prefix;
-        
-        if prefix.is_empty() {
-            break;
-        }
-     }
-     
-     prefix
+
+    matches
+        .into_iter()
+        .map(|m| Pair {
+            display: m.clone(),
+            replacement: m,
+        })
+        .collect()
 }
+
+
 
 fn get_file_completions(prefix: &str) -> Vec<String> {
 
