@@ -8,7 +8,7 @@ use crate::completion_registry::CompletionRegistry;
 
 use crate::path;
 
-pub const BUILTINS: [&str; 6] = ["echo", "exit", "type", "pwd", "cd", "complete"];
+pub const BUILTINS: [&str; 7] = ["echo", "exit", "type", "pwd", "cd", "complete", "jobs"];
 
 pub fn handle_builtins(
     command: &str,
@@ -78,6 +78,10 @@ pub fn handle_builtins(
             
             _ => {}
         }
+
+    
+    } else if command.starts_with("jobs") {
+        println!("");
     } else if command.starts_with("complete") {
         if command.contains("-p") {
         
