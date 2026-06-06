@@ -92,11 +92,10 @@ impl MyCompleter {
             return None;
         }
 
-        let prev_word = line[..word_start]
-            .split_whitespace()
-            .skip(1)
-            .last()
-            .unwrap_or("");
+        // The tester expects argv[3] to be the previous word before the current one.
+        // For example, when the buffer is `git `, the "current word" is empty and the
+        // previous word is `git`.
+        let prev_word = line[..word_start].split_whitespace().last().unwrap_or("");
 
         let script = {
             let registry = self.registry.lock().ok()?;
