@@ -81,7 +81,6 @@ pub fn handle_builtins(
 
     
     } else if command.starts_with("jobs") {
-        println!("");
     } else if command.starts_with("complete") {
         if command.contains("-p") {
         
