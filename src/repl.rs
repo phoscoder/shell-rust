@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 
 use crate::builtins::{BUILTINS, handle_builtins};
 use crate::exec;
+use crate::jobs::JobTable;
 use crate::path;
 use crate::tokenizer;
 
@@ -211,6 +212,7 @@ pub fn start_shell_repl() {
     let path_var = std::env::var("PATH").unwrap();
 
     let registry = Arc::new(Mutex::new(CompletionRegistry::default()));
+    let mut jobs = JobTable::default();
     
     let config = Config::builder()
         .completion_type(CompletionType::List)
@@ -221,6 +223,7 @@ pub fn start_shell_repl() {
     }));
 
     loop {
+        let _ = jobs.reap_finished();
         
         let readline = rl.readline("$ ");
         
@@ -260,7 +263,11 @@ pub fn start_shell_repl() {
                 continue;
             }
 
-            exec::run_external(&tokens, &path_var, redirect_type, redirect_file);
+            if let Some(child) = exec::run_external(&tokens, &path_var, redirect_type, redirect_file) {
+                let command_line = tokens.join(" ");
+                let (job_id, pid) = jobs.add(child, command_line);
+                println!("[{}] {}", job_id, pid);
+            }
         }
     }
 }

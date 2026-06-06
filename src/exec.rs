@@ -1,5 +1,5 @@
 
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::os::unix::process::CommandExt;
 use crate::path;
 
@@ -8,11 +8,22 @@ pub fn run_external(
     path_var: &str, 
     redirect_type: i8,
     redirect_file: Option<String>
-) {
+) -> Option<Child> {
+
+    let mut mut_tokens = tokens.clone();
+
+    let is_background = mut_tokens.last().map_or(false, |t| t == "&");
+
+    if is_background {
+        mut_tokens.pop();
+    }
     
+    if mut_tokens.is_empty() {
+        return None;
+    }
     
-    let program = &tokens[0];
-    let args: Vec<&str> = tokens[1..].iter().map(|s| s.as_str()).collect();
+    let program = &mut_tokens[0];
+    let args: Vec<&str> = mut_tokens[1..].iter().map(|s| s.as_str()).collect();
 
     match path::get_command_path(&path_var, program) {
         Some(fp) => {
@@ -57,18 +68,31 @@ pub fn run_external(
                 _ => {}
             }
 
-            Command::new(fp)
+            let mut cmd = Command::new(fp);
+            cmd
                 .arg0(program)
                 .args(args)
-                .stdin(Stdio::inherit())
+                // A background job should not read from the terminal by default.
+                .stdin(if is_background { Stdio::null() } else { Stdio::inherit() })
                 .stdout(stdout)
-                .stderr(stderr)
-                .spawn()
-                .expect("Failed to execute command")
-                .wait()
-                .expect("Failed to wait for command");
+                .stderr(stderr);
+
+            let mut child = match cmd.spawn() {
+                Ok(c) => c,
+                Err(_) => return None,
+            };
+
+            if is_background {
+                return Some(child);
+            }
+
+            let _ = child.wait();
+            None
         }
-        _ => println!("{0}: command not found", program.trim()),
+        _ => {
+            println!("{0}: command not found", program.trim());
+            None
+        }
     }
     
     
