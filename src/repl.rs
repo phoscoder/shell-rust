@@ -106,6 +106,11 @@ impl MyCompleter {
     ) -> Option<Vec<String>> {
         let command = line.split_whitespace().next()?;
 
+        unsafe {
+            std::env::set_var("COMP_LINE", line);
+            std::env::set_var("COMP_POINT", line.len().to_string());
+        }
+
         if word_start <= command.len() {
             return None;
         }
