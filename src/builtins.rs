@@ -88,7 +88,11 @@ pub fn handle_builtins(
                 println!("complete: {}: no completion specification", tokens[2]); 
             }
            
-           
+        }
+
+        if command.contains("-r") {
+            let mut reg = registry.lock().unwrap();
+            reg.remove(&tokens[2]);
         }
 
         if command.contains("-C") {
