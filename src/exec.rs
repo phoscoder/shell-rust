@@ -159,17 +159,37 @@ pub fn run_pipeline(
     registry: &Arc<Mutex<CompletionRegistry>>,
     jobs: &mut JobTable,
 ) {
-    // Only support one `|` (two commands) for this stage.
-    let Some(pipe_idx) = tokens.iter().position(|t| t == "|") else {
+    // Split the pipeline into command segments.
+    let mut cmds: Vec<Vec<String>> = Vec::new();
+    let mut cur: Vec<String> = Vec::new();
+    for t in tokens {
+        if t == "|" {
+            if !cur.is_empty() {
+                cmds.push(cur);
+                cur = Vec::new();
+            }
+        } else {
+            cur.push(t.clone());
+        }
+    }
+    if !cur.is_empty() {
+        cmds.push(cur);
+    }
+
+    if cmds.len() < 2 {
         run_external(&tokens.to_vec(), path_var, redirect_type, redirect_file);
         return;
-    };
+    }
 
-    let (left, right_with_bar) = tokens.split_at(pipe_idx);
-    let right = &right_with_bar[1..];
-    if left.is_empty() || right.is_empty() {
+    // For now, keep the more complex builtin-aware implementation only for 2-stage pipelines
+    // (needed for previous stage tests). Multi-stage pipelines in this stage are external-only.
+    if cmds.len() > 2 {
+        run_pipeline_external_only(&cmds, path_var, redirect_type, redirect_file);
         return;
     }
+
+    let left = cmds[0].as_slice();
+    let right = cmds[1].as_slice();
 
     let left_cmd = left[0].as_str();
     let right_cmd = right[0].as_str();
@@ -334,4 +354,65 @@ pub fn run_pipeline(
     let _ = right_child.wait();
     let _ = left_child.kill();
     let _ = left_child.wait();
+}
+
+fn run_pipeline_external_only(
+    cmds: &[Vec<String>],
+    path_var: &str,
+    redirect_type: i8,
+    redirect_file: Option<String>,
+) {
+    let last_idx = cmds.len() - 1;
+    let mut children: Vec<std::process::Child> = Vec::new();
+    let mut prev_out: Option<std::process::ChildStdout> = None;
+
+    for (i, cmd_tokens) in cmds.iter().enumerate() {
+        if cmd_tokens.is_empty() {
+            return;
+        }
+        let prog = &cmd_tokens[0];
+        let args: Vec<&str> = cmd_tokens[1..].iter().map(|s| s.as_str()).collect();
+
+        let Some(fp) = path::get_command_path(path_var, prog) else {
+            println!("{0}: command not found", prog.trim());
+            return;
+        };
+
+        let stdin = match prev_out.take() {
+            Some(p) => Stdio::from(p),
+            None => Stdio::inherit(),
+        };
+
+        let (stdout, stderr) = if i == last_idx {
+            apply_redirect(redirect_type, redirect_file.clone())
+        } else {
+            (Stdio::piped(), Stdio::inherit())
+        };
+
+        let mut child = match Command::new(fp)
+            .arg0(prog)
+            .args(args)
+            .stdin(stdin)
+            .stdout(stdout)
+            .stderr(stderr)
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+
+        if i != last_idx {
+            prev_out = child.stdout.take();
+        }
+        children.push(child);
+    }
+
+    // Wait for the last (consumer) first. Then ensure producers are terminated.
+    if let Some(mut last) = children.pop() {
+        let _ = last.wait();
+    }
+    for mut child in children.into_iter().rev() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
 }
