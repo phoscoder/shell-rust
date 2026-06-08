@@ -13,7 +13,7 @@ pub struct Job {
 #[derive(Default)]
 pub struct JobTable {
     next_id: u32,
-    jobs: BTreeMap<u32, Job>,
+    pub jobs: BTreeMap<u32, Job>,
 }
 
 impl JobTable {

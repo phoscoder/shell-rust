@@ -253,7 +253,9 @@ pub fn start_shell_repl() {
                     redirect_type, 
                     &redirect_file, 
                     &path_var,
-                    &registry);
+                    &registry, 
+                    &mut jobs,
+                );
 
             if should_break {
                 break;
