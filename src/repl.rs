@@ -223,7 +223,9 @@ pub fn start_shell_repl() {
     }));
 
     loop {
-        // let _ = jobs.reap_finished();
+        for line in jobs.drain_done_notifications() {
+            println!("{}", line);
+        }
         
         let readline = rl.readline("$ ");
         

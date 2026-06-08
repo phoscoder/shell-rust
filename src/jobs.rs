@@ -53,28 +53,75 @@ impl JobTable {
         done
     }
 
+    fn sign_for(&self, id: u32) -> &'static str {
+        let Some(max) = self.jobs.keys().next_back().copied() else {
+            return " ";
+        };
+        if id == max {
+            return "+";
+        }
+        let prev = self.jobs.keys().nth_back(1).copied();
+        if prev.is_some_and(|p| p == id) {
+            "-"
+        } else {
+            " "
+        }
+    }
 
-    pub fn get_jobs(&mut self) -> () {
-        let _ = self.reap_finished();
+    fn format_line(id: u32, sign: &str, status: &str, command: &str) -> String {
+        // Bash-ish layout. Codecrafters MA9 expects status padded so that:
+        // "[1]+  Done                 cat /tmp/..." matches.
+        format!("[{}]{}  {:<21}{}", id, sign, status, command)
+    }
 
-        let job_keys: Vec<u32> = self.jobs.keys().copied().collect();
-        let n = job_keys.len();
+    // Called before showing a new prompt: emit completion notifications for
+    // finished jobs and remove them from the table.
+    pub fn drain_done_notifications(&mut self) -> Vec<String> {
+        let ids: Vec<u32> = self.jobs.keys().copied().collect();
+        let mut out = Vec::new();
 
-        for (idx, key) in job_keys.iter().enumerate() {
-            let sign = if idx + 1 == n {
-                "+"
-            } else if idx + 2 == n {
-                "-"
-            } else {
-                " "
+        for id in ids {
+            let finished = {
+                let Some(job) = self.jobs.get_mut(&id) else { continue; };
+                job.child.try_wait().ok().flatten().is_some()
             };
-
-            if let Some(job) = self.jobs.get(key) {
-                if !job.command.trim().is_empty() {
-                    let cleaned_command = job.command.trim_end_matches('&').trim_end();
-                    println!("[{}]{}  Running {}", key, sign, cleaned_command);
+            if finished {
+                let sign = self.sign_for(id);
+                if let Some(job) = self.jobs.remove(&id) {
+                    let cmd = job.command.trim_end_matches('&').trim_end();
+                    out.push(Self::format_line(id, sign, "Done", cmd));
                 }
             }
+        }
+
+        out
+    }
+
+    pub fn get_jobs(&mut self) -> () {
+        let ids: Vec<u32> = self.jobs.keys().copied().collect();
+        let mut done_ids: Vec<u32> = Vec::new();
+
+        for id in ids {
+            let sign = self.sign_for(id);
+            let (status, cmd, finished) = {
+                let job = self.jobs.get_mut(&id).unwrap();
+                let finished = job.child.try_wait().ok().flatten().is_some();
+                let status = if finished { "Done" } else { "Running" };
+                let cmd = job.command.trim_end_matches('&').trim_end().to_string();
+                (status, cmd, finished)
+            };
+
+            if !cmd.trim().is_empty() {
+                println!("{}", Self::format_line(id, sign, status, &cmd));
+            }
+
+            if finished {
+                done_ids.push(id);
+            }
+        }
+
+        for id in done_ids {
+            self.jobs.remove(&id);
         }
     }
 }
