@@ -1,6 +1,6 @@
 
 use std::io::{self, Write};
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref};
 use std::path::{Path};
 use std::fs::OpenOptions;
 
@@ -85,7 +85,7 @@ pub fn handle_builtins(
     } else if command.starts_with("jobs") {
         let job_id:u32 = 1;
         let current_job = jobs.deref().jobs.get(&job_id).unwrap();
-        println!("[1] {}", current_job.command)
+        println!("[1]+ {}", current_job.command)
     } else if command.starts_with("complete") {
         if command.contains("-p") {
         
