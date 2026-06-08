@@ -223,7 +223,7 @@ pub fn start_shell_repl() {
     }));
 
     loop {
-        let _ = jobs.reap_finished();
+        // let _ = jobs.reap_finished();
         
         let readline = rl.readline("$ ");
         
