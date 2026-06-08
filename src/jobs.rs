@@ -76,7 +76,7 @@ impl JobTable {
 
             if let Some(job) = self.jobs.get(&key) {
                 if !job.command.trim().is_empty() {
-                    println!("[{}]{} {} {}", key, sign, state, job.command)
+                    println!("[{}]{}  {} {}", key, sign, state, job.command)
                 }
             }
         }
