@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::process::{Child, ExitStatus};
+use std::process::{Child};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -18,7 +18,8 @@ pub struct JobTable {
 
 impl JobTable {
     pub fn add(&mut self, child: Child, command: String) -> (u32, u32) {
-        self.next_id += 1;
+        // self.next_id += 1;
+        self.next_id = self.get_lowest_key();
         let id = self.next_id;
         let pid = child.id();
         self.jobs.insert(
@@ -31,26 +32,6 @@ impl JobTable {
             },
         );
         (id, pid)
-    }
-
-    pub fn reap_finished(&mut self) -> Vec<(u32, u32, ExitStatus)> {
-        let mut done = Vec::new();
-        let ids: Vec<u32> = self.jobs.keys().copied().collect();
-        for id in ids {
-            let finished = {
-                let job = self.jobs.get_mut(&id).expect("job disappeared");
-                match job.child.try_wait() {
-                    Ok(Some(status)) => Some((job.pid, status)),
-                    Ok(None) => None,
-                    Err(_) => None,
-                }
-            };
-            if let Some((pid, status)) = finished {
-                self.jobs.remove(&id);
-                done.push((id, pid, status));
-            }
-        }
-        done
     }
 
     fn sign_for(&self, id: u32) -> &'static str {
@@ -69,13 +50,23 @@ impl JobTable {
     }
 
     fn format_line(id: u32, sign: &str, status: &str, command: &str) -> String {
-        // Bash-ish layout. Codecrafters MA9 expects status padded so that:
-        // "[1]+  Done                 cat /tmp/..." matches.
+
         format!("[{}]{}  {:<21}{}", id, sign, status, command)
     }
 
-    // Called before showing a new prompt: emit completion notifications for
-    // finished jobs and remove them from the table.
+    fn get_lowest_key(&self) -> u32 {
+        let mut job_id = 1;
+
+        for i in 1..100 {
+            if !self.jobs.contains_key(&i) {
+                job_id = i;
+                break;
+            }
+        }
+
+        job_id
+    }
+
     pub fn drain_done_notifications(&mut self) -> Vec<String> {
         let ids: Vec<u32> = self.jobs.keys().copied().collect();
         let mut out = Vec::new();
