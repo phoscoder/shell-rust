@@ -1,6 +1,13 @@
 
 use std::process::{Child, Command, Stdio};
 use std::os::unix::process::CommandExt;
+use std::io::{self, Write};
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+use crate::builtins;
+use crate::completion_registry::CompletionRegistry;
+use crate::jobs::JobTable;
 use crate::path;
 
 fn apply_redirect(redirect_type: i8, redirect_file: Option<String>) -> (Stdio, Stdio) {
@@ -44,6 +51,48 @@ fn apply_redirect(redirect_type: i8, redirect_file: Option<String>) -> (Stdio, S
     }
 
     (stdout, stderr)
+}
+
+fn open_redirect_writers(
+    redirect_type: i8,
+    redirect_file: Option<String>,
+) -> (Box<dyn Write + Send>, Box<dyn Write + Send>) {
+    let mut out: Box<dyn Write + Send> = Box::new(io::stdout());
+    let mut err: Box<dyn Write + Send> = Box::new(io::stderr());
+
+    match redirect_type {
+        1 => {
+            if let Some(file) = redirect_file {
+                if let Ok(f) = std::fs::File::create(file) {
+                    out = Box::new(f);
+                }
+            }
+        }
+        2 => {
+            if let Some(file) = redirect_file {
+                if let Ok(f) = std::fs::File::create(file) {
+                    err = Box::new(f);
+                }
+            }
+        }
+        3 => {
+            if let Some(file) = redirect_file {
+                if let Ok(f) = std::fs::OpenOptions::new().append(true).create(true).open(file) {
+                    out = Box::new(f);
+                }
+            }
+        }
+        4 => {
+            if let Some(file) = redirect_file {
+                if let Ok(f) = std::fs::OpenOptions::new().append(true).create(true).open(file) {
+                    err = Box::new(f);
+                }
+            }
+        }
+        _ => {}
+    }
+
+    (out, err)
 }
 
 pub fn run_external(
@@ -107,6 +156,8 @@ pub fn run_pipeline(
     path_var: &str,
     redirect_type: i8,
     redirect_file: Option<String>,
+    registry: &Arc<Mutex<CompletionRegistry>>,
+    jobs: &mut JobTable,
 ) {
     // Only support one `|` (two commands) for this stage.
     let Some(pipe_idx) = tokens.iter().position(|t| t == "|") else {
@@ -120,9 +171,124 @@ pub fn run_pipeline(
         return;
     }
 
-    let left_prog = &left[0];
+    let left_cmd = left[0].as_str();
+    let right_cmd = right[0].as_str();
+    let left_is_builtin = builtins::is_builtin(left_cmd);
+    let right_is_builtin = builtins::is_builtin(right_cmd);
+
+    // Helper for the final output (right side) when it is a builtin.
+    let (mut builtin_stdout, mut builtin_stderr) = open_redirect_writers(redirect_type, redirect_file.clone());
+
+    // builtin | builtin (buffer in memory; enough for this stage).
+    if left_is_builtin && right_is_builtin {
+        let mut buf: Vec<u8> = Vec::new();
+        let mut stdin = io::empty();
+        let mut stderr = io::sink();
+        let _ = builtins::run_builtin_piped(left, path_var, registry, jobs, &mut stdin, &mut buf, &mut stderr);
+
+        let mut cursor = io::Cursor::new(buf);
+        let mut stderr2 = io::stderr();
+        let _ = builtins::run_builtin_piped(
+            right,
+            path_var,
+            registry,
+            jobs,
+            &mut cursor,
+            builtin_stdout.as_mut(),
+            &mut stderr2,
+        );
+        return;
+    }
+
+    // builtin | external
+    if left_is_builtin && !right_is_builtin {
+        let right_prog = right_cmd;
+        let right_args: Vec<&str> = right[1..].iter().map(|s| s.as_str()).collect();
+        let Some(right_fp) = path::get_command_path(path_var, right_prog) else {
+            println!("{0}: command not found", right_prog.trim());
+            return;
+        };
+
+        let (right_stdout, right_stderr) = apply_redirect(redirect_type, redirect_file);
+
+        let mut right_child = match Command::new(right_fp)
+            .arg0(right_prog)
+            .args(right_args)
+            .stdin(Stdio::piped())
+            .stdout(right_stdout)
+            .stderr(right_stderr)
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+
+        let mut right_stdin = match right_child.stdin.take() {
+            Some(s) => s,
+            None => return,
+        };
+
+        let mut stdin = io::empty();
+        let mut stderr = io::stderr();
+        let _ = builtins::run_builtin_piped(left, path_var, registry, jobs, &mut stdin, &mut right_stdin, &mut stderr);
+        drop(right_stdin); // EOF to the right side
+        let _ = right_child.wait();
+        return;
+    }
+
+    // external | builtin
+    if !left_is_builtin && right_is_builtin {
+        let left_prog = left_cmd;
+        let left_args: Vec<&str> = left[1..].iter().map(|s| s.as_str()).collect();
+        let Some(left_fp) = path::get_command_path(path_var, left_prog) else {
+            println!("{0}: command not found", left_prog.trim());
+            return;
+        };
+
+        let mut left_child = match Command::new(left_fp)
+            .arg0(left_prog)
+            .args(left_args)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+
+        let mut left_stdout = match left_child.stdout.take() {
+            Some(s) => s,
+            None => return,
+        };
+
+        // Drain the producer output so it can't block if the builtin doesn't read stdin.
+        let drain_handle = thread::spawn(move || {
+            let mut sink = io::sink();
+            let _ = io::copy(&mut left_stdout, &mut sink);
+        });
+
+        let mut stdin = io::empty();
+        let _ = builtins::run_builtin_piped(
+            right,
+            path_var,
+            registry,
+            jobs,
+            &mut stdin,
+            builtin_stdout.as_mut(),
+            builtin_stderr.as_mut(),
+        );
+
+        let _ = left_child.kill();
+        let _ = left_child.wait();
+        let _ = drain_handle.join();
+        return;
+    }
+
+    // external | external
+    let left_prog = left_cmd;
     let left_args: Vec<&str> = left[1..].iter().map(|s| s.as_str()).collect();
-    let right_prog = &right[0];
+    let right_prog = right_cmd;
     let right_args: Vec<&str> = right[1..].iter().map(|s| s.as_str()).collect();
 
     let Some(left_fp) = path::get_command_path(path_var, left_prog) else {
@@ -151,7 +317,6 @@ pub fn run_pipeline(
         None => return,
     };
 
-    // Apply any parsed redirection to the *right* side of the pipeline.
     let (right_stdout, right_stderr) = apply_redirect(redirect_type, redirect_file);
 
     let mut right_child = match Command::new(right_fp)
@@ -166,8 +331,6 @@ pub fn run_pipeline(
         Err(_) => return,
     };
 
-    // Wait for the consumer first. After it exits, the producer should usually
-    // terminate due to SIGPIPE; we also try to kill it to avoid hanging.
     let _ = right_child.wait();
     let _ = left_child.kill();
     let _ = left_child.wait();

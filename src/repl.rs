@@ -246,6 +246,18 @@ pub fn start_shell_repl() {
         }
         
 
+        if tokens.iter().any(|t| t == "|") {
+            exec::run_pipeline(
+                &tokens,
+                &path_var,
+                redirect_type,
+                redirect_file,
+                &registry,
+                &mut jobs,
+            );
+            continue;
+        }
+
         if BUILTINS.contains(&tokens[0].as_str()) {
             let should_break =
                 handle_builtins(
@@ -266,11 +278,7 @@ pub fn start_shell_repl() {
                 continue;
             }
 
-            if tokens.iter().any(|t| t == "|") {
-                exec::run_pipeline(&tokens, &path_var, redirect_type, redirect_file);
-            } else if let Some(child) =
-                exec::run_external(&tokens, &path_var, redirect_type, redirect_file)
-            {
+            if let Some(child) = exec::run_external(&tokens, &path_var, redirect_type, redirect_file) {
                 let command_line = tokens.join(" ");
                 let (job_id, pid) = jobs.add(child, command_line);
                 println!("[{}] {}", job_id, pid);
