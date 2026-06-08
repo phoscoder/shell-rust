@@ -102,6 +102,14 @@ pub fn tokenize(input: &str) -> (Vec<String>, (i8, Option<String>)) {
                     current_token.clear();
                 }
             }
+            '|' if !in_single_quote && !in_double_quote => {
+                // Pipeline operator: always a standalone token (like a shell).
+                if !current_token.is_empty() {
+                    tokens.push(current_token.clone());
+                    current_token.clear();
+                }
+                tokens.push("|".to_string());
+            }
             _ => {
                 // Regular character or whitespace inside quotes
                 current_token.push(ch);

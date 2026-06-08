@@ -239,8 +239,7 @@ pub fn start_shell_repl() {
         // command = command.trim().to_string();
 
         let (tokens, (redirect_type, redirect_file)) = tokenizer::tokenize(&command);
-        
-        // println!("redirect type: {}", redirect_type);
+        // NOTE: keep the repl output clean for Codecrafters tests.
         
         if tokens.is_empty() {
             continue;
@@ -267,7 +266,11 @@ pub fn start_shell_repl() {
                 continue;
             }
 
-            if let Some(child) = exec::run_external(&tokens, &path_var, redirect_type, redirect_file) {
+            if tokens.iter().any(|t| t == "|") {
+                exec::run_pipeline(&tokens, &path_var, redirect_type, redirect_file);
+            } else if let Some(child) =
+                exec::run_external(&tokens, &path_var, redirect_type, redirect_file)
+            {
                 let command_line = tokens.join(" ");
                 let (job_id, pid) = jobs.add(child, command_line);
                 println!("[{}] {}", job_id, pid);
