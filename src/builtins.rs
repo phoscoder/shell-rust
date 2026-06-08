@@ -83,12 +83,24 @@ pub fn handle_builtins(
 
     
     } else if command.starts_with("jobs") {
-        let job_id:u32 = 1;
-        let current_job = jobs.deref().jobs.get(&job_id);
+        let job_keys = jobs.deref().jobs.keys();
+        let job_count = job_keys.len() as u32;
 
-        if let Some(job) = current_job {
+        for key in job_keys {
+            let job = jobs.deref().jobs.get(key).unwrap();
+
+            let sign = if job_count - key == 0 {
+                "+"
+            } else {
+                if job_count - key == 1 {
+                    "-"
+                } else {
+                    " "
+                }
+            };
+            
             if job.command.trim().len() > 0 {
-                println!("[1]+ Running {}", job.command)
+                println!("[{}]{} Running {}", key, sign, job.command)
             }
         }
     } else if command.starts_with("complete") {
