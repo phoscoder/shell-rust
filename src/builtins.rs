@@ -85,7 +85,10 @@ pub fn handle_builtins(
     } else if command.starts_with("jobs") {
         let job_id:u32 = 1;
         let current_job = jobs.deref().jobs.get(&job_id).unwrap();
-        println!("[1]+ Running {}", current_job.command)
+
+        if current_job.command.trim().len() > 0 {
+            println!("[1]+ Running {}", current_job.command)
+        }
     } else if command.starts_with("complete") {
         if command.contains("-p") {
         
