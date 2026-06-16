@@ -196,6 +196,11 @@ pub fn handle_builtins(
             let limit = command.split(" ").nth(1).unwrap().parse::<usize>().unwrap();
             command_hist.print_history_limited(limit);
         } else {
+
+            if command.contains("-r") {
+                let path = command.split(" ").nth(1).unwrap();
+                command_hist.load_history(path).unwrap();
+            }
             command_hist.print_history();
         }
     } else if command.starts_with("pwd") {

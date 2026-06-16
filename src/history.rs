@@ -30,4 +30,9 @@ impl<'a> History<'a> {
             println!("{} {}", k + 1, v);
         }
     }
+
+    pub fn load_history(&mut self, path: &str) -> Result<(), std::io::Error> {
+        self.rl.load_history(path).expect("Failed to load history from file");
+        Ok(())
+    }
 }
