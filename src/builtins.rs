@@ -108,6 +108,7 @@ pub fn handle_builtins(
     path: &str,
     registry: &Arc<Mutex<CompletionRegistry>>,
     jobs: &mut crate::jobs::JobTable,
+    command_hist: &mut crate::history::History,
 ) -> bool {
     
     if command.starts_with("echo") {
@@ -194,6 +195,8 @@ pub fn handle_builtins(
             let mut reg = registry.lock().unwrap();
             reg.register(&tokens[3], std::path::PathBuf::from(&tokens[2]));
         }
+    } else if command.starts_with("history") {
+        command_hist.print_history();
     } else if command.starts_with("pwd") {
         println!("{}", std::env::current_dir().unwrap().display());
     } else if command.starts_with("cd") {
