@@ -20,6 +20,7 @@ use crate::exec;
 use crate::jobs::JobTable;
 use crate::path;
 use crate::tokenizer;
+use crate::history;
 
 struct MyCompleter {
     registry: Arc<Mutex<CompletionRegistry>>,
@@ -211,6 +212,8 @@ fn list_dir(dir: &Path, partial: &str) -> Vec<String> {
 pub fn start_shell_repl() {
     let path_var = std::env::var("PATH").unwrap();
 
+    let mut command_hist = history::History::default();
+
     let registry = Arc::new(Mutex::new(CompletionRegistry::default()));
     let mut jobs = JobTable::default();
     
@@ -237,6 +240,7 @@ pub fn start_shell_repl() {
         };
 
         // command = command.trim().to_string();
+        command_hist.add(&command);
 
         let (tokens, (redirect_type, redirect_file)) = tokenizer::tokenize(&command);
         // NOTE: keep the repl output clean for Codecrafters tests.
@@ -253,7 +257,7 @@ pub fn start_shell_repl() {
                 redirect_type,
                 redirect_file,
                 &registry,
-                &mut jobs,
+                &mut jobs
             );
             continue;
         }
@@ -268,6 +272,7 @@ pub fn start_shell_repl() {
                     &path_var,
                     &registry, 
                     &mut jobs,
+                    &mut command_hist,
                 );
 
             if should_break {
