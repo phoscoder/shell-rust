@@ -1,4 +1,5 @@
 use crate::repl::MyCompleter;
+use rustyline::history::History as RlHistory;
 use rustyline::{Editor, error::ReadlineError, history::DefaultHistory};
 
 pub struct History<'a> {
@@ -20,14 +21,15 @@ impl<'a> History<'a> {
 
     pub fn print_history(&self) {
         for (k, v) in self.rl.history().iter().enumerate() {
-            println!("{} {}", k + 1, v);
+            println!("{:>5}  {}", k + 1, v);
         }
     }
 
     pub fn print_history_limited(&self, limit: usize) {
-        let target: Vec<_> = self.rl.history().iter().rev().take(limit).collect();
-        for (k, v) in target.iter().rev().enumerate() {
-            println!("{} {}", k + 1, v);
+        let total = self.rl.history().len();
+        let start = total.saturating_sub(limit);
+        for (k, v) in self.rl.history().iter().skip(start).enumerate() {
+            println!("{:>5}  {}", start + k + 1, v);
         }
     }
 
