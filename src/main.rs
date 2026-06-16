@@ -6,6 +6,7 @@ mod tokenizer;
 mod builtins;
 mod exec;
 mod completion_registry;
+mod history;
 mod jobs;
 
 
