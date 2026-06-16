@@ -8,7 +8,7 @@ use crate::completion_registry::CompletionRegistry;
 
 use crate::path;
 
-pub const BUILTINS: [&str; 7] = ["echo", "exit", "type", "pwd", "cd", "complete", "jobs"];
+pub const BUILTINS: [&str; 8] = ["echo", "exit", "type", "pwd", "cd", "complete", "jobs", "history"];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
