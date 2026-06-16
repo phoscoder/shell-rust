@@ -196,7 +196,14 @@ pub fn handle_builtins(
             reg.register(&tokens[3], std::path::PathBuf::from(&tokens[2]));
         }
     } else if command.starts_with("history") {
-        command_hist.print_history();
+
+        let has_limit = command.contains(" ");
+        if has_limit {
+            let limit = command.split(" ").nth(1).unwrap().parse::<usize>().unwrap();
+            command_hist.print_history_limited(limit);
+        } else {
+            command_hist.print_history();
+        }
     } else if command.starts_with("pwd") {
         println!("{}", std::env::current_dir().unwrap().display());
     } else if command.starts_with("cd") {
