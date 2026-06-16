@@ -1,14 +1,16 @@
-
-use std::io::{self, Read, Write};
-use std::path::{Path};
 use std::fs::OpenOptions;
+use std::io::{self, Read, Write};
+use std::path::Path;
 
 use std::sync::{Arc, Mutex};
+
 use crate::completion_registry::CompletionRegistry;
 
 use crate::path;
 
-pub const BUILTINS: [&str; 8] = ["echo", "exit", "type", "pwd", "cd", "complete", "jobs", "history"];
+pub const BUILTINS: [&str; 8] = [
+    "echo", "exit", "type", "pwd", "cd", "complete", "jobs", "history",
+];
 
 pub fn is_builtin(cmd: &str) -> bool {
     BUILTINS.contains(&cmd)
@@ -86,7 +88,11 @@ pub fn run_builtin_piped(
             if let Some(script) = reg.get(&tokens[2]) {
                 let _ = writeln!(stdout, "complete -C '{}' {}", script.display(), tokens[2]);
             } else {
-                let _ = writeln!(stdout, "complete: {}: no completion specification", tokens[2]);
+                let _ = writeln!(
+                    stdout,
+                    "complete: {}: no completion specification",
+                    tokens[2]
+                );
             }
         }
         return false;
@@ -108,9 +114,8 @@ pub fn handle_builtins(
     path: &str,
     registry: &Arc<Mutex<CompletionRegistry>>,
     jobs: &mut crate::jobs::JobTable,
-    command_hist: &mut crate::history::History,
+    command_hist: &mut crate::history::History<'_>,
 ) -> bool {
-    
     if command.starts_with("echo") {
         let output = if tokens.len() > 1 {
             tokens[1..].join(" ")
@@ -141,14 +146,8 @@ pub fn handle_builtins(
                 }
             }
             3 => {
-
-
                 if let Some(file) = &redirect_file {
-                    match OpenOptions::new()
-                        .create(true)
-                        .append(true)
-                        .open(file)
-                    {
+                    match OpenOptions::new().create(true).append(true).open(file) {
                         Ok(mut f) => {
                             writeln!(f, "{}", output).unwrap();
                         }
@@ -167,23 +166,19 @@ pub fn handle_builtins(
                     let _ = std::fs::File::create(file);
                 }
             }
-            
+
             _ => {}
         }
-
-    
     } else if command.starts_with("jobs") {
         jobs.get_jobs();
     } else if command.starts_with("complete") {
         if command.contains("-p") {
-        
             let reg = registry.lock().unwrap();
             if let Some(script) = reg.get(&tokens[2]) {
                 println!("complete -C '{}' {}", script.display(), tokens[2]);
-            }else {
-                println!("complete: {}: no completion specification", tokens[2]); 
+            } else {
+                println!("complete: {}: no completion specification", tokens[2]);
             }
-           
         }
 
         if command.contains("-r") {
@@ -196,7 +191,6 @@ pub fn handle_builtins(
             reg.register(&tokens[3], std::path::PathBuf::from(&tokens[2]));
         }
     } else if command.starts_with("history") {
-
         let has_limit = command.contains(" ");
         if has_limit {
             let limit = command.split(" ").nth(1).unwrap().parse::<usize>().unwrap();
@@ -230,6 +224,6 @@ pub fn handle_builtins(
     } else if command == "exit" {
         return true;
     }
-    
+
     false
 }

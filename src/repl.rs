@@ -1,28 +1,27 @@
 use std::process::{Command, Stdio};
 
-use std::sync::{Arc, Mutex};
 use crate::completion_registry::CompletionRegistry;
+use std::sync::{Arc, Mutex};
 
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::validate::Validator;
-use rustyline::{CompletionType, Config, Context, Helper, Editor};
 use rustyline::history::DefaultHistory;
+use rustyline::validate::Validator;
+use rustyline::{CompletionType, Config, Context, Editor, Helper};
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-
 use crate::builtins::{BUILTINS, handle_builtins};
 use crate::exec;
+use crate::history;
 use crate::jobs::JobTable;
 use crate::path;
 use crate::tokenizer;
-use crate::history;
 
-struct MyCompleter {
+pub struct MyCompleter {
     registry: Arc<Mutex<CompletionRegistry>>,
 }
 
@@ -36,14 +35,13 @@ impl Validator for MyCompleter {}
 
 impl Completer for MyCompleter {
     type Candidate = Pair;
-    
+
     fn complete(
-        &self, 
+        &self,
         line: &str,
         pos: usize,
-        _: &rustyline::Context
+        _: &rustyline::Context,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        
         let line_to_pos = &line[..pos];
         let start = line_to_pos.rfind(' ').map(|p| p + 1).unwrap_or(0);
         let prefix = &line[start..pos];
@@ -53,7 +51,7 @@ impl Completer for MyCompleter {
             matches.dedup();
             return Ok((start, to_pairs(matches)));
         }
-        
+
         let mut matches = if start == 0 && !prefix.is_empty() && !prefix.contains('/') {
             // Completing the command position: suggest builtins + executables from $PATH.
             let mut results: Vec<String> = BUILTINS
@@ -68,7 +66,7 @@ impl Completer for MyCompleter {
         } else {
             get_file_completions(prefix)
         };
-        
+
         matches.sort();
         matches.dedup();
 
@@ -131,7 +129,11 @@ impl MyCompleter {
 fn to_pairs(mut matches: Vec<String>) -> Vec<Pair> {
     if matches.len() == 1 {
         let m = matches.pop().unwrap();
-        let replacement = if m.ends_with('/') { m.clone() } else { format!("{m} ") };
+        let replacement = if m.ends_with('/') {
+            m.clone()
+        } else {
+            format!("{m} ")
+        };
         return vec![Pair {
             display: m,
             replacement,
@@ -147,11 +149,7 @@ fn to_pairs(mut matches: Vec<String>) -> Vec<Pair> {
         .collect()
 }
 
-
-
 fn get_file_completions(prefix: &str) -> Vec<String> {
-
-
     if prefix.is_empty() {
         return list_dir(Path::new("."), "");
     }
@@ -159,32 +157,26 @@ fn get_file_completions(prefix: &str) -> Vec<String> {
     let path = Path::new(prefix);
 
     if prefix.ends_with('/') {
-        return list_dir(path, "")
+        return list_dir(path, "");
     }
-
 
     let (dir, partial) = if prefix.contains('/') {
         let path = Path::new(prefix);
-    
+
         let dir = path.parent().unwrap_or(Path::new("."));
-        let partial = path.file_name()
-            .unwrap_or_default()
-            .to_string_lossy();
-    
+        let partial = path.file_name().unwrap_or_default().to_string_lossy();
+
         (dir, partial)
     } else {
         (Path::new("."), prefix.into())
     };
 
-    
-
     list_dir(dir, &partial)
 }
 
 fn list_dir(dir: &Path, partial: &str) -> Vec<String> {
-
     let mut results = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let name = entry.file_name();
@@ -212,11 +204,9 @@ fn list_dir(dir: &Path, partial: &str) -> Vec<String> {
 pub fn start_shell_repl() {
     let path_var = std::env::var("PATH").unwrap();
 
-    let mut command_hist = history::History::default();
-
     let registry = Arc::new(Mutex::new(CompletionRegistry::default()));
     let mut jobs = JobTable::default();
-    
+
     let config = Config::builder()
         .completion_type(CompletionType::List)
         .build();
@@ -225,33 +215,30 @@ pub fn start_shell_repl() {
         registry: Arc::clone(&registry),
     }));
 
-    
+    let mut command_hist = history::History::new(&mut rl);
 
     loop {
         for line in jobs.drain_done_notifications() {
             println!("{}", line);
         }
-        
-        let readline = rl.readline("$ ");
-        
-        
+
+        let readline = command_hist.readline("$ ");
+
         let command = match readline {
             Ok(line) => line.trim().to_string(),
             Err(ReadlineError::Interrupted | ReadlineError::Eof) => break,
-            Err(_) => continue
+            Err(_) => continue,
         };
 
         // command = command.trim().to_string();
         command_hist.add(&command);
-        let _ = rl.add_history_entry(&command);
 
         let (tokens, (redirect_type, redirect_file)) = tokenizer::tokenize(&command);
         // NOTE: keep the repl output clean for Codecrafters tests.
-        
+
         if tokens.is_empty() {
             continue;
         }
-        
 
         if tokens.iter().any(|t| t == "|") {
             exec::run_pipeline(
@@ -260,23 +247,22 @@ pub fn start_shell_repl() {
                 redirect_type,
                 redirect_file,
                 &registry,
-                &mut jobs
+                &mut jobs,
             );
             continue;
         }
 
         if BUILTINS.contains(&tokens[0].as_str()) {
-            let should_break =
-                handle_builtins(
-                    &command, 
-                    &tokens, 
-                    redirect_type, 
-                    &redirect_file, 
-                    &path_var,
-                    &registry, 
-                    &mut jobs,
-                    &mut command_hist,
-                );
+            let should_break = handle_builtins(
+                &command,
+                &tokens,
+                redirect_type,
+                &redirect_file,
+                &path_var,
+                &registry,
+                &mut jobs,
+                &mut command_hist,
+            );
 
             if should_break {
                 break;
@@ -286,7 +272,9 @@ pub fn start_shell_repl() {
                 continue;
             }
 
-            if let Some(child) = exec::run_external(&tokens, &path_var, redirect_type, redirect_file) {
+            if let Some(child) =
+                exec::run_external(&tokens, &path_var, redirect_type, redirect_file)
+            {
                 let command_line = tokens.join(" ");
                 let (job_id, pid) = jobs.add(child, command_line);
                 println!("[{}] {}", job_id, pid);
