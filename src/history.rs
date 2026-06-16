@@ -31,8 +31,7 @@ impl<'a> History<'a> {
         }
     }
 
-    pub fn load_history(&mut self, path: &str) -> Result<(), std::io::Error> {
-        self.rl.load_history(path).expect("Failed to load history from file");
-        Ok(())
+    pub fn load_history(&mut self, path: &str) -> Result<(), rustyline::error::ReadlineError> {
+        self.rl.load_history(path)
     }
 }

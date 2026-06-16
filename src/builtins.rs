@@ -191,16 +191,22 @@ pub fn handle_builtins(
             reg.register(&tokens[3], std::path::PathBuf::from(&tokens[2]));
         }
     } else if command.starts_with("history") {
-        let has_limit = command.contains(" ");
-        if has_limit {
-            let limit = command.split(" ").nth(1).unwrap().parse::<usize>().unwrap();
-            command_hist.print_history_limited(limit);
-        } else {
+        let parts: Vec<&str> = command.split_whitespace().collect();
 
-            if command.contains("-r") {
-                let path = command.split(" ").nth(1).unwrap();
-                command_hist.load_history(path).unwrap();
+        if parts.len() > 1 && parts[1] == "-r" {
+            if let Some(path) = parts.get(2) {
+                if let Err(e) = command_hist.load_history(path) {
+                    eprintln!("history: {}: {}", path, e);
+                }
+            } else {
+                eprintln!("history: -r: missing filename argument");
             }
+        } else if parts.len() > 1 {
+            match parts[1].parse::<usize>() {
+                Ok(limit) => command_hist.print_history_limited(limit),
+                Err(_) => eprintln!("history: {}: numeric argument required", parts[1]),
+            }
+        } else {
             command_hist.print_history();
         }
     } else if command.starts_with("pwd") {
