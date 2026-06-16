@@ -243,7 +243,7 @@ pub fn start_shell_repl() {
 
         // command = command.trim().to_string();
         command_hist.add(&command);
-        rl.add_history_entry(&command).expect_err("Could not save command");
+        let _ = rl.add_history_entry(&command);
 
         let (tokens, (redirect_type, redirect_file)) = tokenizer::tokenize(&command);
         // NOTE: keep the repl output clean for Codecrafters tests.
